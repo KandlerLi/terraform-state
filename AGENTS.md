@@ -34,8 +34,8 @@ documentation or repository-governance change.
 When a change affects the backend, state keys, access controls, security,
 recovery, operations, architecture, or deployed state, review and update both:
 
-- `/home/julian/projects/home-infra-docs`
-- `/home/julian/projects/home-infra-ai-context`
+- `/home/julian/projects/docs/home-infra-docs`
+- `/home/julian/projects/docs/home-infra-ai-context`
 
 Keep human-facing C4 and operational detail in `home-infra-docs`; keep compact,
 secret-free cross-task context and safety invariants in
