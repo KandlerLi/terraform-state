@@ -40,20 +40,11 @@ resource "aws_iam_user" "julian" {
   }
 }
 
-# `julian` has carried AdministratorAccess since 2021. Imported so
-# Terraform can detach it deliberately (see README's "Removing
-# AdministratorAccess" section for why that's a separate, second apply)
-# rather than it just being silently superseded by the scoped policy
-# below while remaining attached underneath.
-import {
-  to = aws_iam_user_policy_attachment.julian_admin
-  id = "julian/arn:aws:iam::aws:policy/AdministratorAccess"
-}
-
-resource "aws_iam_user_policy_attachment" "julian_admin" {
-  user       = aws_iam_user.julian.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
-}
+# AdministratorAccess was imported here, verified alongside the scoped
+# policy below via real repo-infra plans under julian (both a clean
+# refresh and a clean "no changes" plan), and detached on 2026-08-23 --
+# see ADR 0018 and this root's README for the two-apply sequence this
+# came from.
 
 # Scoped to exactly what running repo-infra locally needs, and nothing
 # else -- deliberately excludes any IAM action over IAM users, groups,
