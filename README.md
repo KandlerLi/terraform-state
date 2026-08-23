@@ -4,6 +4,13 @@ This Terraform configuration creates the central S3 bucket used as the remote
 state backend by the infrastructure repositories. State locking uses S3 lock
 files, so no DynamoDB table is required.
 
+It also manages the `julian` operator IAM identity (`operator.tf`) — see the
+"Operator Identity" section below. The two live in the same root
+deliberately: both this bucket and that identity are foundational,
+essentially-bootstrap-once resources applied only by root, unlike
+`repo-infra`, which is applied routinely (by `julian`, once its policy here
+is live).
+
 ## Prerequisites
 
 - Terraform 1.10 or newer
@@ -140,6 +147,72 @@ long-lived access keys stored as repository secrets.
 
 Terraform state can contain secrets. Restrict both read and write access to the
 bucket and never publish state files or plan files.
+
+## Operator Identity (`julian`)
+
+`operator.tf` brings the pre-existing IAM user `julian` (created 2021,
+previously managed only by hand, carrying `AdministratorAccess`) under
+Terraform, and attaches a policy scoped to exactly what running
+`repo-infra` locally needs — the shared state bucket's `repo-infra/*`
+prefix, the GitHub Actions OIDC provider, and IAM role/policy management
+restricted to the `*-github-actions`/`*-github-plan` naming convention
+`repo-infra`'s `modules/repo` uses. See
+`home-infra-docs/docs/adr/0018-scoped-operator-identity.md` for the full
+reasoning, including why this identity is deliberately given no access to
+*this* root's own state (`terraform-state/*`) or to itself.
+
+Applying this root always needs the AWS root identity (or another already
+admin-equivalent identity) — never `julian`. That's what makes the
+guarantee hold: the resources managing `julian`'s own identity live
+somewhere `julian` has no access to.
+
+### First apply: importing `julian`
+
+```bash
+cd bootstrap/terraform-state
+terraform init
+terraform plan
+terraform apply
+```
+
+The `import` blocks bring the existing `julian` user and its
+`AdministratorAccess` attachment under management with no live change; the
+same apply attaches the new `terraform-operator` scoped inline policy.
+After this, `julian` has **both** `AdministratorAccess` and the scoped
+policy — deliberately, so nothing breaks mid-migration.
+
+### Removing `AdministratorAccess`: a second, deliberate apply
+
+Terraform can only stop managing a resource already in its state, so
+detaching `AdministratorAccess` needs a second pass: once the apply above
+has run cleanly and `julian`'s scoped policy is confirmed to work, delete
+the `import` block and the `aws_iam_user_policy_attachment.julian_admin`
+resource block from `operator.tf`, then run `terraform plan && terraform
+apply` again. Terraform will show exactly one planned change — detaching
+the policy — and nothing else.
+
+### Enabling console sign-in and MFA for `julian`
+
+Neither can be done via Terraform (a login profile password and an MFA
+device both need direct human interaction) — do this once via the AWS
+Console:
+
+1. IAM → Users → `julian` → Security credentials tab → "Console access" →
+   enable it and set a password.
+2. Same tab → "Assign MFA device" → scan the QR code with an authenticator
+   app and enter two consecutive codes to confirm.
+3. Next time you run `aws login`, choose "IAM user" sign-in (not "Root
+   user"), enter this account's ID, `julian`, and the password, then the
+   MFA code.
+
+### What's deliberately not covered
+
+`julian`'s policy is scoped to exactly what `repo-infra` touches today —
+nothing broader. `julian` cannot manage this bucket, cannot apply
+`terraform-state` itself, and cannot do the kind of ad-hoc cross-service
+read-only AWS CLI verification (budgets, Route 53 health checks,
+CloudWatch alarms, SNS, IAM audits) root has been used for throughout this
+workspace's history. Those all still need root, deliberately.
 
 ## Decommissioning
 
