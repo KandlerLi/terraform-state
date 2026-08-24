@@ -46,6 +46,21 @@ resource "aws_iam_user" "julian" {
 # see ADR 0018 and this root's README for the two-apply sequence this
 # came from.
 
+# Read-only, account-wide visibility -- for ad-hoc verification (did a
+# deploy actually work, what does this role/alarm/subscription look
+# like) that julian's write-scoped policy below deliberately doesn't
+# cover. AWS's own ViewOnlyAccess, not the broader ReadOnlyAccess: it
+# grants List/Describe/Get on resource *configuration* everywhere, but
+# deliberately excludes actions that return actual data (s3:GetObject,
+# secretsmanager:GetSecretValue, dynamodb:GetItem, kms:Decrypt, etc.), so
+# it can't be used to read Terraform state contents or secrets. Being
+# read-only, it doesn't touch the self-escalation guarantee below --
+# read access can reveal permissions, never grant them.
+resource "aws_iam_user_policy_attachment" "julian_view_only" {
+  user       = aws_iam_user.julian.name
+  policy_arn = "arn:aws:iam::aws:policy/ViewOnlyAccess"
+}
+
 # Scoped to exactly what running repo-infra locally needs, and nothing
 # else -- deliberately excludes any IAM action over IAM users, groups,
 # or this policy/user itself, and excludes any access to this root's own
