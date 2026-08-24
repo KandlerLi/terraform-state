@@ -58,7 +58,7 @@ resource "aws_iam_user" "julian" {
 # read access can reveal permissions, never grant them.
 resource "aws_iam_user_policy_attachment" "julian_view_only" {
   user       = aws_iam_user.julian.name
-  policy_arn = "arn:aws:iam::aws:policy/ViewOnlyAccess"
+  policy_arn = "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"
 }
 
 # Scoped to exactly what running repo-infra locally needs, and nothing
