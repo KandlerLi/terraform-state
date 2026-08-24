@@ -205,14 +205,29 @@ Console:
    user"), enter this account's ID, `julian`, and the password, then the
    MFA code.
 
-### What's deliberately not covered
+### Read access vs. write access
 
-`julian`'s policy is scoped to exactly what `repo-infra` touches today —
-nothing broader. `julian` cannot manage this bucket, cannot apply
-`terraform-state` itself, and cannot do the kind of ad-hoc cross-service
-read-only AWS CLI verification (budgets, Route 53 health checks,
-CloudWatch alarms, SNS, IAM audits) root has been used for throughout this
-workspace's history. Those all still need root, deliberately.
+`julian`'s *write* permissions (the `terraform-operator` inline policy)
+are scoped to exactly what `repo-infra` touches today — nothing broader.
+`julian` cannot manage this bucket or apply `terraform-state` itself; only
+root can. `julian` also has AWS's managed `ViewOnlyAccess` policy attached
+(added 2026-08-24), which covers the kind of ad-hoc, cross-service
+read-only verification (Route 53 health checks, CloudWatch alarms, IAM
+role/policy configs, most `List`/`Describe`/`Get` calls) that root had
+been used for throughout this workspace's history — deliberately not the
+broader `ReadOnlyAccess`, since `ViewOnlyAccess` excludes any action that
+returns actual data (`s3:GetObject`, `secretsmanager:GetSecretValue`,
+`dynamodb:GetItem`, `kms:Decrypt`, etc.), so it can't be used to read this
+root's own Terraform state or any secrets. Being read-only, it doesn't
+weaken the self-escalation guarantee above — it can reveal permissions,
+never grant them.
+
+A few things `ViewOnlyAccess` still doesn't cover, since AWS's own policy
+excludes them: AWS Budgets (no `budgets:*` actions at all) and a handful
+of per-resource `Get*` calls that aren't paired with a `List*` action
+(for example `sns:GetSubscriptionAttributes` — only `sns:List*` is
+included). Those specific gaps still need root, or a small additional
+grant here if they come up often enough to be worth adding.
 
 ## Decommissioning
 
