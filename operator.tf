@@ -65,6 +65,21 @@ resource "aws_iam_user_policy" "julian_terraform_operator" {
         Resource = "*"
       },
       {
+        # `aws login`'s browser-based OAuth flow for IAM users (as
+        # opposed to root, which bypasses IAM policy checks entirely)
+        # needs these two actions -- normally granted via AWS's own
+        # SignInLocalDevelopmentAccess managed policy. Found live: without
+        # this, `aws login` as julian failed at token exchange with a 400
+        # the moment AdministratorAccess was detached, since logging in as
+        # julian at all turned out to be a prerequisite this policy had
+        # overlooked, not something "running repo-infra needs" already
+        # covered implicitly.
+        Sid      = "AllowLocalDevelopmentSignIn"
+        Effect   = "Allow"
+        Action   = ["signin:AuthorizeOAuth2Access", "signin:CreateOAuth2Token"]
+        Resource = "arn:aws:signin:*:*:oauth2/public-client/*"
+      },
+      {
         Sid      = "ListRepoInfraState"
         Effect   = "Allow"
         Action   = "s3:ListBucket"
