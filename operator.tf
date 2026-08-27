@@ -25,13 +25,6 @@ locals {
   state_bucket_arn = aws_s3_bucket.terraform_state.arn
 }
 
-# Brings the pre-existing IAM user `julian` (created 2021, previously
-# managed only by hand) under Terraform.
-import {
-  to = aws_iam_user.julian
-  id = "julian"
-}
-
 resource "aws_iam_user" "julian" {
   name = "julian"
 
