@@ -229,6 +229,38 @@ of per-resource `Get*` calls that aren't paired with a `List*` action
 included). Those specific gaps still need root, or a small additional
 grant here if they come up often enough to be worth adding.
 
+## Account Baseline Security Hardening
+
+`account_baseline.tf` manages a handful of account-wide, essentially
+set-once security settings with no natural per-repository owner:
+
+- **CloudTrail** — one trail (`account-baseline`) covering management
+  events across all regions, logging to its own dedicated
+  `jkandler-cloudtrail-logs` bucket (public access blocked, encrypted,
+  logs expire after 365 days). Free from CloudTrail itself; the only
+  cost is that bucket's S3 storage, fractions of a cent/month at this
+  account's event volume.
+- **IAM Access Analyzer** (`account-baseline`, account-scoped) — flags
+  any IAM user, role, or S3 bucket reachable from outside the account.
+  Zero cost.
+- **S3 Block Public Access at the account level**
+  (`aws_s3_account_public_access_block`) — a blanket safety net on top
+  of whatever each individual bucket's own public-access block already
+  does, so a future bucket created without one still can't be made
+  public by accident.
+
+Deliberately excludes GuardDuty, AWS Config, and Security Hub: real
+ongoing cost, disproportionate to this account's own $10/month budget,
+and largely redundant with everything already going through Terraform.
+
+Root account MFA has no Terraform resource and isn't managed here —
+check it by hand via IAM → Users (or the account root user's own
+security credentials page) in the console.
+
+Applies at the same cadence and trust level as everything else in this
+root — root identity only, run alongside a normal `terraform plan`/
+`terraform apply` here.
+
 ## Decommissioning
 
 The bucket is not configured with `force_destroy`, so Terraform will refuse to
