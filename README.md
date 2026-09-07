@@ -51,6 +51,17 @@ terraform apply
 terraform output
 ```
 
+Or `scripts/roll-out.sh plan`/`apply`, which re-exports
+`TF_VAR_repo_infra_local_pgp_key`/`TF_VAR_k3s_bootstrap_local_pgp_key`
+automatically (both required variables with no default, so Terraform
+otherwise prompts for them on every apply in this root, even ones that
+don't touch either access key) and runs `fmt`/`validate`/`plan`/`apply`
+-- deliberately does **not** set up AWS credentials, unlike
+`github/repo-infra`'s and `bootstrap/k3s-bootstrap`'s own
+`scripts/roll-out.sh`. This root manages the identities those two use,
+so it stays applied only via an interactive `aws login` as root/an
+admin-equivalent identity, run yourself first (ADR 0018).
+
 Do not remove or change the backend block, reinitialize with `-reconfigure`, or
 migrate state unless the existing remote state and recovery path have first
 been verified. Terraform state and plan files must not be committed.
