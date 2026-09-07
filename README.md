@@ -244,12 +244,16 @@ out of reach either way.
 
 ### First apply: creating `repo-infra-local` and its access key
 
-Needs `repo_infra_local_pgp_key` — a base64 ASCII-armored PGP public
-key, reusing this workspace's existing `pass`/`sops` GPG key
+Needs `repo_infra_local_pgp_key` — a base64-encoded **raw binary** PGP
+public key (not `--armor`'d — confirmed live: `aws_iam_access_key`'s
+`pgp_key` wants `base64(binary key packet)`, and base64'ing the
+ASCII-armored text instead double-encodes it, failing with `openpgp:
+invalid data: tag byte does not have MSB set`), reusing this
+workspace's existing `pass`/`sops` GPG key
 (`6D8B16CB662983A54B4AF1466F0B5C2AB1509600`):
 
 ```bash
-export TF_VAR_repo_infra_local_pgp_key="$(gpg --export --armor 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64)"
+export TF_VAR_repo_infra_local_pgp_key="$(gpg --export 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64)"
 terraform plan
 terraform apply
 ```

@@ -106,15 +106,19 @@ resource "aws_iam_user_policy" "repo_infra_local_terraform_operator" {
 
 variable "repo_infra_local_pgp_key" {
   description = <<-EOT
-    Base64-encoded ASCII-armored PGP public key used to encrypt this
-    identity's access key secret at creation, so it never lands in
-    Terraform state as plaintext (unlike julian's own OAuth session,
-    this identity's static key has no expiry of its own -- worth the
-    extra step). Reuses this workspace's existing pass/sops GPG key
+    Base64-encoded PGP public key (the raw binary export, NOT
+    --armor'd -- confirmed live: aws_iam_access_key's pgp_key wants
+    base64(binary key packet), and base64'ing the ASCII-armored text
+    instead double-encodes it, failing with "openpgp: invalid data:
+    tag byte does not have MSB set") used to encrypt this identity's
+    access key secret at creation, so it never lands in Terraform
+    state as plaintext (unlike julian's own OAuth session, this
+    identity's static key has no expiry of its own -- worth the extra
+    step). Reuses this workspace's existing pass/sops GPG key
     (6D8B16CB662983A54B4AF1466F0B5C2AB1509600), already used for
     infra/home-infra's own scripts/sync_secrets_to_pass.py:
 
-        gpg --export --armor 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64
+        gpg --export 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64
 
     Pass the result via TF_VAR_repo_infra_local_pgp_key at apply time --
     never written to a file in this repo.
