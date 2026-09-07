@@ -229,6 +229,58 @@ of per-resource `Get*` calls that aren't paired with a `List*` action
 included). Those specific gaps still need root, or a small additional
 grant here if they come up often enough to be worth adding.
 
+## repo-infra-local Identity
+
+`repo_infra_local.tf` brings a second, narrower identity for the same
+`repo-infra` local-apply use case `julian` already covers, but for
+`repo-infra`'s own `scripts/roll-out.sh` (scripted, non-interactive)
+instead of `julian`'s MFA-backed browser `aws login` flow. Its policy is
+`julian`'s own `terraform-operator` policy, minus the two things a
+scripted identity doesn't need: the `AllowLocalDevelopmentSignIn`
+statement (browser OAuth only) and `ViewOnlyAccess` (ad-hoc human
+investigation only). Same self-escalation guarantee as `julian`: no IAM
+action over IAM users/groups/itself, and this root's own state stays
+out of reach either way.
+
+### First apply: creating `repo-infra-local` and its access key
+
+Needs `repo_infra_local_pgp_key` — a base64 ASCII-armored PGP public
+key, reusing this workspace's existing `pass`/`sops` GPG key
+(`6D8B16CB662983A54B4AF1466F0B5C2AB1509600`):
+
+```bash
+export TF_VAR_repo_infra_local_pgp_key="$(gpg --export --armor 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64)"
+terraform plan
+terraform apply
+```
+
+Then, once, decrypt the new access key's secret and store both halves in
+`pass` (`repo-infra/scripts/roll-out.sh` reads from these two entries):
+
+```bash
+pass insert --force --multiline aws/repo-infra-local/access-key-id <<< "$(terraform output -raw repo_infra_local_access_key_id)"
+terraform output -raw repo_infra_local_encrypted_secret_access_key \
+  | base64 -d | gpg -d \
+  | pass insert --force --multiline aws/repo-infra-local/secret-access-key
+```
+
+Nothing above writes the decrypted secret to a file or this repo — it
+only ever passes through this one pipeline into `pass`.
+
+### Rotation
+
+No automated reminder yet (tracked in the workspace's own `PARKED.md`)
+— a recommended cadence of every 90 days, done by hand:
+
+```bash
+terraform apply -replace=aws_iam_access_key.repo_infra_local
+```
+
+then repeat the `pass insert` pair above — the old key stops working
+the moment the new one is created (AWS allows at most two access keys
+per user, and this identity only ever has one managed here), so there's
+no separate deactivation step.
+
 ## Account Baseline Security Hardening
 
 `account_baseline.tf` manages a handful of account-wide, essentially
