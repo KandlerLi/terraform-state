@@ -131,13 +131,15 @@ variable "repo_infra_local_pgp_key" {
 # repeat the decrypt-and-store step in README.md, rotates this -- no
 # automated reminder yet (see PARKED.md in the workspace root), just a
 # documented manual procedure with a recommended cadence.
+#
+# Deliberately NO prevent_destroy here, unlike the user above --
+# confirmed live: it directly blocks that exact rotation command (and
+# blocked recovering from a first apply attempt's own tainted state
+# after an unrelated pgp_key-format error). This resource is designed
+# to be replaced; only the identity it belongs to needs protecting.
 resource "aws_iam_access_key" "repo_infra_local" {
   user    = aws_iam_user.repo_infra_local.name
   pgp_key = var.repo_infra_local_pgp_key
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 output "repo_infra_local_access_key_id" {
