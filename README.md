@@ -271,7 +271,7 @@ terraform output -raw repo_infra_local_encrypted_secret_access_key \
 Nothing above writes the decrypted secret to a file or this repo — it
 only ever passes through this one pipeline into `pass`.
 
-### Rotation
+### Rotating `repo-infra-local`
 
 No automated reminder yet (tracked in the workspace's own `PARKED.md`)
 — a recommended cadence of every 90 days, done by hand:
@@ -284,6 +284,43 @@ then repeat the `pass insert` pair above — the old key stops working
 the moment the new one is created (AWS allows at most two access keys
 per user, and this identity only ever has one managed here), so there's
 no separate deactivation step.
+
+## k3s-bootstrap-local Identity
+
+`k3s_bootstrap_local.tf` is the same shape as `repo-infra-local` above,
+for `bootstrap/k3s-bootstrap`'s own `scripts/roll-out.sh` instead.
+Simpler policy — that repo's Terraform only ever needs S3 read/write on
+its own `k3s-bootstrap/*` state prefix, never IAM/OIDC management (it
+manages Kubernetes RBAC and PersistentVolumes via the `kubernetes`
+provider, not AWS resources). Only removes the `aws login` step from
+that repo's own `roll-out.sh` — applying it still needs the k3s node's
+own cluster-admin kubeconfig regardless, since it manages
+privilege-defining Kubernetes RBAC (see that repo's own README).
+
+### First apply: creating `k3s-bootstrap-local` and its access key
+
+```bash
+export TF_VAR_k3s_bootstrap_local_pgp_key="$(gpg --export 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64)"
+terraform plan
+terraform apply
+```
+
+```bash
+pass insert --force --multiline aws/k3s-bootstrap-local/access-key-id <<< "$(terraform output -raw k3s_bootstrap_local_access_key_id)"
+terraform output -raw k3s_bootstrap_local_encrypted_secret_access_key \
+  | base64 -d | gpg -d \
+  | pass insert --force --multiline aws/k3s-bootstrap-local/secret-access-key
+```
+
+### Rotating `k3s-bootstrap-local`
+
+Same procedure and cadence as `repo-infra-local` above:
+
+```bash
+terraform apply -replace=aws_iam_access_key.k3s_bootstrap_local
+```
+
+then repeat the `pass insert` pair above.
 
 ## Account Baseline Security Hardening
 
