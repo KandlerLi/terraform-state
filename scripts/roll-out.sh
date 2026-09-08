@@ -46,10 +46,17 @@ cd "${repo_root}"
 terraform init -input=false
 terraform fmt -check -recursive
 terraform validate
-terraform plan
+# -input=false on plan/apply too, not just init -- see
+# github/repo-infra's own roll-out.sh for why (a missing/unexported
+# required variable otherwise drops into a confusing interactive
+# prompt instead of failing outright). Doesn't affect
+# repo_infra_local_pgp_key/k3s_bootstrap_local_pgp_key above -- those
+# are always exported by this script itself before this point.
+terraform plan -input=false
 
 if [ "${mode}" = "apply" ]; then
   # Interactive on purpose -- terraform's own plan-and-confirm prompt is
-  # the review step, not -auto-approve.
-  terraform apply
+  # the review step, not -auto-approve. -input=false doesn't affect
+  # that prompt, only variable-value prompts.
+  terraform apply -input=false
 fi
