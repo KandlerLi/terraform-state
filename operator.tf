@@ -142,6 +142,37 @@ resource "aws_iam_user_policy" "julian_terraform_operator" {
           "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-github-plan",
         ]
       },
+      {
+        # The workspace's move off SOPS onto AWS Secrets Manager
+        # (secrets_manager.tf, PARKED.md's "Secrets sprawl" item).
+        # Scoped to exactly the 10 secret resources that file creates --
+        # real Terraform resource references, not hand-built ARN
+        # strings, so this list can never silently drift from what
+        # actually exists. PutSecretValue is included alongside the
+        # reads: julian is the one who edits/rotates these values going
+        # forward (aws secretsmanager put-secret-value), replacing
+        # today's `sops <file>` edit flow -- an operator managing their
+        # own secrets needs write, not just read.
+        Sid    = "ManageSecretsManagerSecrets"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:PutSecretValue",
+        ]
+        Resource = [
+          aws_secretsmanager_secret.home_infra_authelia.arn,
+          aws_secretsmanager_secret.home_infra_grafana.arn,
+          aws_secretsmanager_secret.home_infra_open_webui.arn,
+          aws_secretsmanager_secret.home_infra_nextcloud.arn,
+          aws_secretsmanager_secret.home_infra_ingress.arn,
+          aws_secretsmanager_secret.home_infra_home_agent.arn,
+          aws_secretsmanager_secret.home_infra_monitoring.arn,
+          aws_secretsmanager_secret.home_infra_blocky.arn,
+          aws_secretsmanager_secret.home_infra_github_runner.arn,
+          aws_secretsmanager_secret.k3s_apps_sankey_export.arn,
+        ]
+      },
     ]
   })
 }
