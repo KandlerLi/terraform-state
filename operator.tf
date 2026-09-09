@@ -59,9 +59,16 @@ resource "aws_iam_user_policy_attachment" "julian_view_only" {
 # or this policy/user itself, and excludes any access to this root's own
 # state (the "repo-infra/*" prefix only, never "terraform-state/*").
 # julian never applies terraform-state itself; that stays root-only.
-resource "aws_iam_user_policy" "julian_terraform_operator" {
+#
+# Customer-managed policy (aws_iam_policy + a separate attachment
+# below), not an inline aws_iam_user_policy -- found live 2026-09-09:
+# adding the Secrets Manager statement below pushed this policy's JSON
+# past AWS's hard 2048-byte cap on inline user policies (a fixed
+# ceiling for that resource type, not something a quota increase can
+# raise). A managed policy's own quota (6144 bytes) has real headroom
+# for this policy to keep growing the way it already has.
+resource "aws_iam_policy" "julian_terraform_operator" {
   name = "terraform-operator"
-  user = aws_iam_user.julian.name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -175,4 +182,9 @@ resource "aws_iam_user_policy" "julian_terraform_operator" {
       },
     ]
   })
+}
+
+resource "aws_iam_user_policy_attachment" "julian_terraform_operator" {
+  user       = aws_iam_user.julian.name
+  policy_arn = aws_iam_policy.julian_terraform_operator.arn
 }
