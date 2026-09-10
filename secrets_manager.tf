@@ -136,13 +136,15 @@ resource "aws_secretsmanager_secret" "home_infra_github_runner" {
   }
 }
 
-# sankey_export_app_password
-resource "aws_secretsmanager_secret" "k3s_apps_sankey_export" {
-  name                    = "k3s-apps/sankey-export"
-  description             = "sankey_export CronJob's own Nextcloud app password"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# sankey_export_app_password -- migrated to bootstrap/secrets-manager
+# 2026-09-10 (the pilot), via the ADR 0006 / ADR 0010 no-destroy handoff:
+# imported there, relinquished here. `destroy = false` keeps the live
+# secret; Terraform just drops it from this root's state. GC this block in
+# the final sweep once every group has migrated.
+removed {
+  from = aws_secretsmanager_secret.k3s_apps_sankey_export
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }

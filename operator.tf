@@ -177,7 +177,9 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           aws_secretsmanager_secret.home_infra_monitoring.arn,
           aws_secretsmanager_secret.home_infra_blocky.arn,
           aws_secretsmanager_secret.home_infra_github_runner.arn,
-          aws_secretsmanager_secret.k3s_apps_sankey_export.arn,
+          # k3s-apps/sankey-export migrated to bootstrap/secrets-manager
+          # 2026-09-10 -- julian's grant on it now comes from that root's
+          # own aws_iam_policy.julian_secrets_manager_operator.
         ]
       },
     ]
