@@ -242,19 +242,22 @@ grant here if they come up often enough to be worth adding.
 
 ## Secrets Manager
 
-`secrets_manager.tf` creates 10 secret *containers* (the
+`secrets_manager.tf` created 10 secret *containers* (the
 SOPS-to-Secrets-Manager cutover, `PARKED.md`/`decisions.md`) — name and
 `lifecycle { prevent_destroy = true }` only, never a value; real
 secret material is set out-of-band via `aws secretsmanager
 put-secret-value`, the same way SOPS kept it out of plaintext git.
-`operator.tf` grants `julian` read/write on all 10; `k3s_bootstrap_local.tf`
-grants the scripted `k3s-bootstrap-local` identity read-only on the one
-group it needs.
 
-See `secrets/README.md` for what each group holds and how to rotate
-it, and `docs/home-infra-docs/docs/runbooks/rotate-secrets.md` for the
-cross-cutting rotation categories and automated-rotation feasibility
-that per-secret documentation draws from.
+**These are being migrated out of this root** into `bootstrap/secrets-manager`,
+one group at a time, via the ADR 0006 / ADR 0010 no-destroy handoff
+(`removed { ... destroy = false }` blocks stay here; `import` blocks in the
+destination). As each group migrates, its `resource` block here becomes a
+`removed` block and its ARN leaves `operator.tf`'s
+`ManageSecretsManagerSecrets` statement (and `k3s_bootstrap_local.tf`'s
+`ReadGithubRunnerSecret` statement, for `home-infra/github-runner`). See
+`bootstrap/secrets-manager/README.md` for the migration-status table,
+the per-group docs (moved there too), and
+`docs/home-infra-docs/docs/runbooks/rotate-secrets.md` for rotation.
 
 ## repo-infra-local Identity
 
