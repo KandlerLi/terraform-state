@@ -44,14 +44,15 @@ resource "aws_secretsmanager_secret" "home_infra_authelia" {
   }
 }
 
-# monitoring_grafana_admin_password, authelia_oidc_grafana_client_secret
-resource "aws_secretsmanager_secret" "home_infra_grafana" {
-  name                    = "home-infra/grafana"
-  description             = "Grafana's admin password and its own Authelia OIDC client secret"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# authelia_oidc_grafana_client_secret (monitoring_grafana_admin_password
+# was dropped from the JSON 2026-09-10 -- see bootstrap/secrets-manager).
+# Migrated to bootstrap/secrets-manager 2026-09-10 via the ADR 0006 /
+# ADR 0010 no-destroy handoff: imported there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_grafana
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 
