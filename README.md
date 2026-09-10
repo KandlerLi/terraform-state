@@ -240,6 +240,22 @@ of per-resource `Get*` calls that aren't paired with a `List*` action
 included). Those specific gaps still need root, or a small additional
 grant here if they come up often enough to be worth adding.
 
+## Secrets Manager
+
+`secrets_manager.tf` creates 10 secret *containers* (the
+SOPS-to-Secrets-Manager cutover, `PARKED.md`/`decisions.md`) — name and
+`lifecycle { prevent_destroy = true }` only, never a value; real
+secret material is set out-of-band via `aws secretsmanager
+put-secret-value`, the same way SOPS kept it out of plaintext git.
+`operator.tf` grants `julian` read/write on all 10; `k3s_bootstrap_local.tf`
+grants the scripted `k3s-bootstrap-local` identity read-only on the one
+group it needs.
+
+See `secrets/README.md` for what each group holds and how to rotate
+it, and `docs/home-infra-docs/docs/runbooks/rotate-secrets.md` for the
+cross-cutting rotation categories and automated-rotation feasibility
+that per-secret documentation draws from.
+
 ## repo-infra-local Identity
 
 `repo_infra_local.tf` brings a second, narrower identity for the same
