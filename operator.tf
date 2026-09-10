@@ -151,15 +151,23 @@ resource "aws_iam_policy" "julian_terraform_operator" {
       },
       {
         # The workspace's move off SOPS onto AWS Secrets Manager
-        # (secrets_manager.tf, PARKED.md's "Secrets sprawl" item).
-        # Scoped to exactly the 10 secret resources that file creates --
-        # real Terraform resource references, not hand-built ARN
-        # strings, so this list can never silently drift from what
-        # actually exists. PutSecretValue is included alongside the
-        # reads: julian is the one who edits/rotates these values going
-        # forward (aws secretsmanager put-secret-value), replacing
-        # today's `sops <file>` edit flow -- an operator managing their
-        # own secrets needs write, not just read.
+        # (PARKED.md's "Secrets sprawl" item). julian's grant on every
+        # secret container stays here -- the containers themselves are
+        # migrating out to bootstrap/secrets-manager one at a time, but
+        # the grant machinery does not follow them (it belongs next to
+        # julian's other operator permissions, in one file). PutSecretValue
+        # is included alongside the reads: julian edits/rotates these
+        # values (aws secretsmanager put-secret-value), replacing the old
+        # `sops <file>` flow -- an operator managing their own secrets
+        # needs write, not just read.
+        #
+        # Two kinds of entry below: real resource references for the
+        # containers still defined in this root's own secrets_manager.tf
+        # (can't drift from what exists), and wildcard ARN strings for
+        # the ones already migrated to bootstrap/secrets-manager (the
+        # trailing -* covers the random suffix AWS appends). As each
+        # container migrates, its line moves from the first group to the
+        # second.
         Sid    = "ManageSecretsManagerSecrets"
         Effect = "Allow"
         Action = [
@@ -177,9 +185,9 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           aws_secretsmanager_secret.home_infra_monitoring.arn,
           aws_secretsmanager_secret.home_infra_blocky.arn,
           aws_secretsmanager_secret.home_infra_github_runner.arn,
-          # k3s-apps/sankey-export migrated to bootstrap/secrets-manager
-          # 2026-09-10 -- julian's grant on it now comes from that root's
-          # own aws_iam_policy.julian_secrets_manager_operator.
+
+          # migrated to bootstrap/secrets-manager:
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/sankey-export-*",
         ]
       },
     ]
