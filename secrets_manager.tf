@@ -104,14 +104,14 @@ removed {
 }
 
 # monitoring_ses_smtp_username, monitoring_ses_smtp_password,
-# monitoring_ntfy_topic
-resource "aws_secretsmanager_secret" "home_infra_monitoring" {
-  name                    = "home-infra/monitoring"
-  description             = "Alertmanager/Authelia's shared SES SMTP identity and the ntfy relay topic"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# monitoring_ntfy_topic. Migrated to bootstrap/secrets-manager
+# 2026-09-11 via the ADR 0006 / ADR 0010 no-destroy handoff: imported
+# there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_monitoring
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 

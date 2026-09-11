@@ -178,7 +178,6 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         Resource = [
           aws_secretsmanager_secret.home_infra_authelia.arn,
           aws_secretsmanager_secret.home_infra_nextcloud.arn,
-          aws_secretsmanager_secret.home_infra_monitoring.arn,
           aws_secretsmanager_secret.home_infra_blocky.arn,
           aws_secretsmanager_secret.home_infra_github_runner.arn,
 
@@ -188,6 +187,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/open-webui-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/home-agent-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/ingress-*",
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/monitoring-*",
         ]
       },
     ]
