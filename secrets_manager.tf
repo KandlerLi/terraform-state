@@ -92,14 +92,14 @@ resource "aws_secretsmanager_secret" "home_infra_ingress" {
 }
 
 # home_agent_openai_api_key, home_agent_ghcr_token,
-# nextcloud_tools_app_password
-resource "aws_secretsmanager_secret" "home_infra_home_agent" {
-  name                    = "home-infra/home-agent"
-  description             = "home_agent's OpenAI/GHCR credentials and its nextcloud_tools sidecar's app password"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# nextcloud_tools_app_password. Migrated to bootstrap/secrets-manager
+# 2026-09-11 via the ADR 0006 / ADR 0010 no-destroy handoff: imported
+# there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_home_agent
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 
