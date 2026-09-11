@@ -56,14 +56,14 @@ removed {
   }
 }
 
-# authelia_oidc_openwebui_client_secret
-resource "aws_secretsmanager_secret" "home_infra_open_webui" {
-  name                    = "home-infra/open-webui"
-  description             = "Open WebUI's own Authelia OIDC client secret"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# authelia_oidc_openwebui_client_secret. Migrated to
+# bootstrap/secrets-manager 2026-09-11 via the ADR 0006 / ADR 0010
+# no-destroy handoff: imported there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_open_webui
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 
