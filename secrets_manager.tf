@@ -67,14 +67,14 @@ removed {
   }
 }
 
-# authelia_oidc_nextcloud_client_secret
-resource "aws_secretsmanager_secret" "home_infra_nextcloud" {
-  name                    = "home-infra/nextcloud"
-  description             = "Nextcloud's own Authelia OIDC client secret (consumed by infra/home-infra's Ansible only -- Nextcloud AIO stays on the homeserver, not k3s)"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# authelia_oidc_nextcloud_client_secret. Migrated to
+# bootstrap/secrets-manager 2026-09-11 via the ADR 0006 / ADR 0010
+# no-destroy handoff: imported there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_nextcloud
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 
