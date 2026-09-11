@@ -78,16 +78,16 @@ resource "aws_secretsmanager_secret" "home_infra_nextcloud" {
   }
 }
 
-# shared_ingress_auth_password, shared_ingress_auth_password_hash,
 # k3s_ingress_acme_dns01_access_key_id,
-# k3s_ingress_acme_dns01_secret_access_key
-resource "aws_secretsmanager_secret" "home_infra_ingress" {
-  name                    = "home-infra/ingress"
-  description             = "Shared-ingress Basic Auth credential and the ACME DNS-01 Route53 IAM keypair"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# k3s_ingress_acme_dns01_secret_access_key (shared_ingress_auth_password/
+# _hash retired 2026-09-11, see bootstrap/secrets-manager). Migrated to
+# bootstrap/secrets-manager 2026-09-11 via the ADR 0006 / ADR 0010
+# no-destroy handoff: imported there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_ingress
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 
