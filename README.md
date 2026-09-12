@@ -242,19 +242,25 @@ grant here if they come up often enough to be worth adding.
 
 ## Secrets Manager
 
-`secrets_manager.tf` created 10 secret *containers* (the
-SOPS-to-Secrets-Manager cutover, `PARKED.md`/`decisions.md`) — name and
-`lifecycle { prevent_destroy = true }` only, never a value; real
-secret material is set out-of-band via `aws secretsmanager
-put-secret-value`, the same way SOPS kept it out of plaintext git.
+`secrets_manager.tf` used to create 10 secret *containers* (the
+SOPS-to-Secrets-Manager cutover, `PARKED.md`/`decisions.md`) — name
+and `lifecycle { prevent_destroy = true }` only, never a value; real
+secret material was (and still is, wherever it lives now) set
+out-of-band via `aws secretsmanager put-secret-value`, the same way
+SOPS kept it out of plaintext git.
 
-**These are being migrated out of this root** into `bootstrap/secrets-manager`,
-one group at a time, via the ADR 0006 / ADR 0010 no-destroy handoff
-(`removed { ... destroy = false }` blocks stay here; `import` blocks in the
-destination). As each group migrates, its `resource` block here becomes a
-`removed` block and its ARN leaves `operator.tf`'s
-`ManageSecretsManagerSecrets` statement (and `k3s_bootstrap_local.tf`'s
-`ReadGithubRunnerSecret` statement, for `home-infra/github-runner`). See
+**All 10 have since migrated** to `bootstrap/secrets-manager`, one
+group at a time, via the ADR 0006 / ADR 0010 no-destroy handoff
+(`home-infra/authelia`, the last, on 2026-09-12); `secrets_manager.tf`
+itself — by then nothing but `removed { ... destroy = false }` blocks
+and a `locals` entry only those referenced — was deleted outright in
+the campaign's final sweep, confirmed with a clean plan. `julian`'s
+grant on every one of these secrets stays here permanently in
+`operator.tf`'s `ManageSecretsManagerSecrets` statement regardless —
+that grant was never really about which repo owns the container, only
+about `julian` needing read/write on the values themselves (and
+`k3s_bootstrap_local.tf`'s own `ReadGithubRunnerSecret` statement for
+`home-infra/github-runner` specifically, same reasoning). See
 `bootstrap/secrets-manager/README.md` for the migration-status table,
 the per-group docs (moved there too), and
 `docs/home-infra-docs/docs/runbooks/rotate-secrets.md` for rotation.
