@@ -60,16 +60,20 @@ resource "aws_iam_user_policy" "k3s_bootstrap_local_terraform_operator" {
       {
         # The SOPS-to-Secrets-Manager cutover (PARKED.md): this root's
         # own github_runner_github_token now comes straight from
-        # secrets_manager.tf's home-infra/github-runner container
-        # instead of a human-supplied TF_VAR_* at apply time. Read-only
-        # -- unlike julian's own ManageSecretsManagerSecrets statement
-        # below, this is a scripted, non-interactive identity (see this
-        # file's own header comment); julian's own credentials stay the
-        # only way to edit/rotate the value.
+        # home-infra/github-runner's own container instead of a
+        # human-supplied TF_VAR_* at apply time. Read-only -- unlike
+        # julian's own ManageSecretsManagerSecrets statement below,
+        # this is a scripted, non-interactive identity (see this
+        # file's own header comment); julian's own credentials stay
+        # the only way to edit/rotate the value. Wildcard ARN string,
+        # not a resource reference, since the container itself
+        # migrated to bootstrap/secrets-manager 2026-09-12 -- this
+        # identity's grant follows the same pattern julian's own does
+        # for every migrated secret.
         Sid      = "ReadGithubRunnerSecret"
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
-        Resource = aws_secretsmanager_secret.home_infra_github_runner.arn
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/github-runner-*"
       },
     ]
   })

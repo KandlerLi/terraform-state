@@ -178,7 +178,6 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         Resource = [
           aws_secretsmanager_secret.home_infra_authelia.arn,
           aws_secretsmanager_secret.home_infra_blocky.arn,
-          aws_secretsmanager_secret.home_infra_github_runner.arn,
 
           # migrated to bootstrap/secrets-manager:
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/sankey-export-*",
@@ -188,6 +187,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/ingress-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/monitoring-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/nextcloud-*",
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/github-runner-*",
         ]
       },
     ]

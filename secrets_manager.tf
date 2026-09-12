@@ -126,14 +126,14 @@ resource "aws_secretsmanager_secret" "home_infra_blocky" {
   }
 }
 
-# github_runner_github_token
-resource "aws_secretsmanager_secret" "home_infra_github_runner" {
-  name                    = "home-infra/github-runner"
-  description             = "Shared PAT for every repo's self-hosted GitHub Actions runner (bootstrap/k3s-bootstrap's own modules/github_runner)"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# github_runner_github_token. Migrated to bootstrap/secrets-manager
+# 2026-09-12 via the ADR 0006 / ADR 0010 no-destroy handoff: imported
+# there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_github_runner
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 
