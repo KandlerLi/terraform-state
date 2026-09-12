@@ -115,14 +115,14 @@ removed {
   }
 }
 
-# blocky_postgres_password
-resource "aws_secretsmanager_secret" "home_infra_blocky" {
-  name                    = "home-infra/blocky"
-  description             = "Blocky's own Postgres query-log password (also read by Grafana's datasource config)"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# blocky_postgres_password. Migrated to bootstrap/secrets-manager
+# 2026-09-12 via the ADR 0006 / ADR 0010 no-destroy handoff: imported
+# there, relinquished here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_blocky
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 

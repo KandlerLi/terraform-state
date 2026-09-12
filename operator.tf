@@ -177,7 +177,6 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         ]
         Resource = [
           aws_secretsmanager_secret.home_infra_authelia.arn,
-          aws_secretsmanager_secret.home_infra_blocky.arn,
 
           # migrated to bootstrap/secrets-manager:
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/sankey-export-*",
@@ -199,6 +198,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           # here for the first time rather than moving from the first
           # group.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:dyndns/fritzbox-*",
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/blocky-*",
         ]
       },
     ]
