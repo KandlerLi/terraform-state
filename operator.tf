@@ -188,6 +188,17 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/monitoring-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/nextcloud-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/github-runner-*",
+
+          # dyndns/fritzbox is different from every entry above: it was
+          # never a real resource reference in this file at all -- its
+          # container was created directly in aws/dyndns (a real
+          # CI/PR-gated repo, not this root's own secrets_manager.tf),
+          # so julian never had an explicit grant on it until this
+          # migration added one. Migrated to bootstrap/secrets-manager
+          # 2026-09-12 the same way as everything else, just arriving
+          # here for the first time rather than moving from the first
+          # group.
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:dyndns/fritzbox-*",
         ]
       },
     ]
