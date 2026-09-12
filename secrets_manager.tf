@@ -33,14 +33,15 @@ locals {
 # authelia_oidc_hmac_secret, authelia_oidc_issuer_private_key,
 # authelia_oidc_grafana_client_secret_hash,
 # authelia_oidc_openwebui_client_secret_hash,
-# authelia_oidc_nextcloud_client_secret_hash
-resource "aws_secretsmanager_secret" "home_infra_authelia" {
-  name                    = "home-infra/authelia"
-  description             = "Authelia's own session/storage/OIDC secrets (infra/k3s-apps' modules/authelia)"
-  recovery_window_in_days = local.secrets_manager_recovery_window_days
+# authelia_oidc_nextcloud_client_secret_hash. The last group in the
+# campaign. Migrated to bootstrap/secrets-manager 2026-09-12 via the
+# ADR 0006 / ADR 0010 no-destroy handoff: imported there, relinquished
+# here.
+removed {
+  from = aws_secretsmanager_secret.home_infra_authelia
 
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
 

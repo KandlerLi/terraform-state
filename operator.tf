@@ -161,13 +161,17 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         # `sops <file>` flow -- an operator managing their own secrets
         # needs write, not just read.
         #
-        # Two kinds of entry below: real resource references for the
-        # containers still defined in this root's own secrets_manager.tf
-        # (can't drift from what exists), and wildcard ARN strings for
-        # the ones already migrated to bootstrap/secrets-manager (the
-        # trailing -* covers the random suffix AWS appends). As each
-        # container migrates, its line moves from the first group to the
-        # second.
+        # Every group has now migrated to bootstrap/secrets-manager
+        # (home-infra/authelia, 2026-09-12, was the last) -- every entry
+        # below is a wildcard ARN string (the trailing -* covers the
+        # random suffix AWS appends), not a real resource reference,
+        # since secrets_manager.tf no longer defines any of these
+        # containers itself. This whole statement is a candidate for
+        # the campaign's final sweep: deleting secrets_manager.tf's
+        # `removed` blocks doesn't require deleting this grant (julian
+        # still needs read/write on these secrets regardless of which
+        # repo owns the container), so it stays as-is even once that
+        # cleanup happens.
         Sid    = "ManageSecretsManagerSecrets"
         Effect = "Allow"
         Action = [
@@ -176,8 +180,6 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "secretsmanager:PutSecretValue",
         ]
         Resource = [
-          aws_secretsmanager_secret.home_infra_authelia.arn,
-
           # migrated to bootstrap/secrets-manager:
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/sankey-export-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/grafana-*",
@@ -206,9 +208,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/ghcr-pull-token-*",
 
           # home-infra/authelia: the last group in the campaign, migrated
-          # to bootstrap/secrets-manager 2026-09-12. Additive alongside
-          # the real resource reference above until Phase B (this file's
-          # own resource block relinquished) -- no access gap either way.
+          # to bootstrap/secrets-manager 2026-09-12.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/authelia-*",
         ]
       },
