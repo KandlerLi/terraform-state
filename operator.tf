@@ -199,6 +199,17 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           # group.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:dyndns/fritzbox-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/blocky-*",
+
+          # A genuinely new secret, not a migration -- split out of
+          # home-infra/home-agent 2026-09-12 (see
+          # bootstrap/secrets-manager's own module for why).
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/ghcr-pull-token-*",
+
+          # home-infra/authelia: the last group in the campaign, migrated
+          # to bootstrap/secrets-manager 2026-09-12. Additive alongside
+          # the real resource reference above until Phase B (this file's
+          # own resource block relinquished) -- no access gap either way.
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/authelia-*",
         ]
       },
     ]
