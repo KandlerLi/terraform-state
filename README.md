@@ -249,7 +249,7 @@ secret material was (and still is, wherever it lives now) set
 out-of-band via `aws secretsmanager put-secret-value`, the same way
 SOPS kept it out of plaintext git.
 
-**All 10 have since migrated** to `bootstrap/secrets-manager`, one
+**All 10 have since migrated** to `aws/secrets-manager`, one
 group at a time, via the ADR 0006 / ADR 0010 no-destroy handoff
 (`home-infra/authelia`, the last, on 2026-09-12); `secrets_manager.tf`
 itself — by then nothing but `removed { ... destroy = false }` blocks
@@ -261,7 +261,7 @@ that grant was never really about which repo owns the container, only
 about `julian` needing read/write on the values themselves (and
 `k3s_bootstrap_local.tf`'s own `ReadGithubRunnerSecret` statement for
 `home-infra/github-runner` specifically, same reasoning). See
-`bootstrap/secrets-manager/README.md` for the migration-status table,
+`aws/secrets-manager/README.md` for the migration-status table,
 the per-group docs (moved there too), and
 `docs/home-infra-docs/docs/runbooks/rotate-secrets.md` for rotation.
 

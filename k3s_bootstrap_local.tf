@@ -67,7 +67,7 @@ resource "aws_iam_user_policy" "k3s_bootstrap_local_terraform_operator" {
         # file's own header comment); julian's own credentials stay
         # the only way to edit/rotate the value. Wildcard ARN string,
         # not a resource reference, since the container itself
-        # migrated to bootstrap/secrets-manager 2026-09-12 -- this
+        # migrated to aws/secrets-manager 2026-09-12 -- this
         # identity's grant follows the same pattern julian's own does
         # for every migrated secret.
         Sid      = "ReadGithubRunnerSecret"

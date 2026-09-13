@@ -153,7 +153,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         # The workspace's move off SOPS onto AWS Secrets Manager
         # (PARKED.md's "Secrets sprawl" item). julian's grant on every
         # secret container stays here -- the containers themselves are
-        # migrating out to bootstrap/secrets-manager one at a time, but
+        # migrating out to aws/secrets-manager one at a time, but
         # the grant machinery does not follow them (it belongs next to
         # julian's other operator permissions, in one file). PutSecretValue
         # is included alongside the reads: julian edits/rotates these
@@ -161,7 +161,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         # `sops <file>` flow -- an operator managing their own secrets
         # needs write, not just read.
         #
-        # Every group has now migrated to bootstrap/secrets-manager
+        # Every group has now migrated to aws/secrets-manager
         # (home-infra/authelia, 2026-09-12, was the last) -- every entry
         # below is a wildcard ARN string (the trailing -* covers the
         # random suffix AWS appends), not a real resource reference,
@@ -180,7 +180,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "secretsmanager:PutSecretValue",
         ]
         Resource = [
-          # migrated to bootstrap/secrets-manager:
+          # migrated to aws/secrets-manager:
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/sankey-export-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/grafana-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/open-webui-*",
@@ -195,7 +195,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           # container was created directly in aws/dyndns (a real
           # CI/PR-gated repo, not this root's own secrets_manager.tf),
           # so julian never had an explicit grant on it until this
-          # migration added one. Migrated to bootstrap/secrets-manager
+          # migration added one. Migrated to aws/secrets-manager
           # 2026-09-12 the same way as everything else, just arriving
           # here for the first time rather than moving from the first
           # group.
@@ -204,11 +204,11 @@ resource "aws_iam_policy" "julian_terraform_operator" {
 
           # A genuinely new secret, not a migration -- split out of
           # home-infra/home-agent 2026-09-12 (see
-          # bootstrap/secrets-manager's own module for why).
+          # aws/secrets-manager's own module for why).
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/ghcr-pull-token-*",
 
           # home-infra/authelia: the last group in the campaign, migrated
-          # to bootstrap/secrets-manager 2026-09-12.
+          # to aws/secrets-manager 2026-09-12.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/authelia-*",
         ]
       },
