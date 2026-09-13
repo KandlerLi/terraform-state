@@ -358,6 +358,55 @@ terraform apply -replace=aws_iam_access_key.k3s_bootstrap_local
 
 then repeat the `pass insert` pair above.
 
+## home-infra-local Identity
+
+`home_infra_local.tf` is the same shape as the two identities above, for
+`infra/home-infra`'s own `ansible-playbook site.yml` runs instead. The
+simplest of the three: `infra/home-infra` has no Terraform state of its
+own at all (pure Ansible) — no S3 statements needed. Its only AWS
+touchpoint is exactly two `lookup('amazon.aws.secretsmanager_secret', ...)`
+calls in `site.yml` (`home-infra/monitoring`, `home-infra/nextcloud`),
+previously read under whatever ambient AWS session happened to be
+active locally — in practice, `julian`'s own `aws login`. This identity
+removes that dependency the same way `repo-infra-local`/
+`k3s-bootstrap-local` already removed it for their own repos.
+
+### First apply: creating `home-infra-local` and its access key
+
+```bash
+export TF_VAR_home_infra_local_pgp_key="$(gpg --export 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64)"
+terraform plan
+terraform apply
+```
+
+```bash
+pass insert --force --multiline aws/home-infra-local/access-key-id <<< "$(terraform output -raw home_infra_local_access_key_id)"
+terraform output -raw home_infra_local_encrypted_secret_access_key \
+  | base64 -d | gpg -d \
+  | pass insert --force --multiline aws/home-infra-local/secret-access-key
+```
+
+Then, before running `site.yml`, export the two standard AWS SDK
+environment variables from `pass` (matching how `repo-infra`'s/
+`k3s-bootstrap`'s own `scripts/roll-out.sh` source their identities —
+`infra/home-infra` has no equivalent wrapper script yet; export these
+by hand, or add one):
+
+```bash
+export AWS_ACCESS_KEY_ID="$(pass show aws/home-infra-local/access-key-id)"
+export AWS_SECRET_ACCESS_KEY="$(pass show aws/home-infra-local/secret-access-key)"
+```
+
+### Rotating `home-infra-local`
+
+Same procedure and cadence as `repo-infra-local` above:
+
+```bash
+terraform apply -replace=aws_iam_access_key.home_infra_local
+```
+
+then repeat the `pass insert` pair above.
+
 ## Account Baseline Security Hardening
 
 `account_baseline.tf` manages a handful of account-wide, essentially
