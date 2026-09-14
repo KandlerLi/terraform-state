@@ -12,3 +12,8 @@ output "aws_region" {
   description = "AWS region containing the Terraform state bucket"
   value       = var.aws_region
 }
+
+output "logs_kms_key_arn" {
+  description = "ARN of the shared CMK for CloudWatch Logs encryption"
+  value       = aws_kms_key.logs.arn
+}
