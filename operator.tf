@@ -33,23 +33,10 @@ resource "aws_iam_user" "julian" {
   }
 }
 
-#trivy:ignore:AVD-AWS-0123
 resource "aws_iam_group" "julian" {
   # Fixes trivy's AWS-0143 (policies attached directly to a user) --
   # covers both policy attachments below, moved from user- to
   # group-scoped attachments with julian as this group's only member.
-  #
-  # AWS-0123 (MFA not enforced for group) suppressed here too, but for a
-  # different reason than every other identity in this workspace: julian
-  # already signs in via a real MFA-backed browser OAuth flow (`aws
-  # login`, AllowLocalDevelopmentSignIn below) rather than having no
-  # session at all like a machine credential -- so unlike those, this
-  # isn't a false positive. It's deliberately deferred rather than fixed
-  # here: adding a real aws:MultiFactorAuthPresent condition is a
-  # separate, higher-stakes change that needs a registered and tested
-  # MFA device confirmed working first, since getting it wrong risks
-  # locking out this account's own operator identity. Tracked in
-  # PARKED.md.
   name = "julian"
 }
 
@@ -57,6 +44,68 @@ resource "aws_iam_group_membership" "julian" {
   name  = "julian-members"
   group = aws_iam_group.julian.name
   users = [aws_iam_user.julian.name]
+}
+
+# Fixes trivy's AWS-0123 for real (not suppressed) -- the console
+# sign-in + MFA device README.md's own "Enabling console sign-in and MFA
+# for julian" section walks through are confirmed set up and working
+# (2026-09-14), so this is no longer deferred pending that confirmation.
+#
+# A separate inline group policy rather than folded into
+# julian_terraform_operator above, deliberately: this is a DENY that
+# affects nearly every action, fundamentally different in kind from the
+# ALLOW statements everything else here grants, and keeping it separate
+# means it can be detached in one step (one resource to remove) if it
+# ever needs to be rolled back, without touching julian's actual
+# permission grants at all.
+#
+# Follows AWS's own documented pattern for this exact scenario
+# (reference_policies_examples_iam_mfa-selfmanage.html) -- BoolIfExists
+# rather than Bool, since aws:MultiFactorAuthPresent is simply absent
+# (not false) on a request that never authenticated with MFA at all, and
+# Bool can't evaluate a condition key that isn't present.
+#
+# NotAction here has two additions beyond AWS's own standard example,
+# both required for julian's own sign-in mechanism specifically (a
+# browser OAuth exchange via `aws login`, not the classic console-
+# password + GetSessionToken flow that example targets):
+# signin:AuthorizeOAuth2Access/CreateOAuth2Token -- the exchange that
+# *establishes* an MFA-backed session in the first place. Without these
+# exempted, this statement would deny the very sign-in call that
+# produces the MFA-authenticated session, permanently locking julian out
+# with no way back in except as root. sts:GetCallerIdentity is exempted
+# too, as a harmless read-only escape hatch for diagnosing exactly this
+# kind of problem if it ever comes up again.
+resource "aws_iam_group_policy" "julian_require_mfa" {
+  name  = "require-mfa"
+  group = aws_iam_group.julian.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "BlockMostAccessUnlessSignedInWithMFA"
+        Effect = "Deny"
+        NotAction = [
+          "iam:CreateVirtualMFADevice",
+          "iam:EnableMFADevice",
+          "iam:ListMFADevices",
+          "iam:ListUsers",
+          "iam:ListVirtualMFADevices",
+          "iam:ResyncMFADevice",
+          "signin:AuthorizeOAuth2Access",
+          "signin:CreateOAuth2Token",
+          "sts:GetCallerIdentity",
+        ]
+        Resource = "*"
+        Condition = {
+          BoolIfExists = {
+            "aws:MultiFactorAuthPresent" = "false"
+          }
+        }
+      },
+    ]
+  })
 }
 
 # AdministratorAccess was imported here, verified alongside the scoped

@@ -216,6 +216,27 @@ Console:
    user"), enter this account's ID, `julian`, and the password, then the
    MFA code.
 
+Confirmed set up and working 2026-09-14, at which point
+`aws_iam_group_policy.julian_require_mfa` (operator.tf) started actually
+*requiring* it, not just supporting it: every action except
+`sts:GetCallerIdentity`, the standard MFA self-management actions, and
+the two `signin:` actions julian's own `aws login` sign-in itself needs
+is denied without an MFA-authenticated session
+(`aws:MultiFactorAuthPresent`). Deliberately its own separate group
+policy, not folded into `julian_terraform_operator` — a Deny of this
+shape can be detached in one step if it ever needs rolling back
+(`terraform state rm` won't do it since it'd still exist in config; the
+real rollback is deleting the resource block and re-applying as root),
+without touching julian's actual permission grants at all. The AWS
+resource that would represent the virtual MFA device object itself
+(`aws_iam_virtual_mfa_device`) still isn't managed here, deliberately --
+its Terraform schema has no way to represent the actual user
+association at all (that's inherently the `EnableMFADevice` API call
+above, not any Terraform resource), so importing it would only add the
+bare device metadata while risking Terraform "correcting" a name
+mismatch by deleting and recreating the live device -- breaking the
+authenticator app pairing for zero real benefit.
+
 ### Read access vs. write access
 
 `julian`'s *write* permissions (the `terraform-operator` inline policy)
