@@ -137,6 +137,34 @@ resource "aws_kms_key" "shared" {
           }
         }
       },
+      {
+        # CloudWatch Alarms' own required key-policy shape for
+        # publishing to an SSE-KMS-encrypted SNS topic, per AWS's own
+        # documentation for this exact scenario (sns-key-management.html,
+        # "Enable compatibility between event sources from AWS services
+        # and encrypted topics") -- fixes homeserver-health-check's own
+        # AWS-0095. aws:SourceAccount scopes this to alarms in this
+        # account specifically, the confused-deputy protection AWS's own
+        # docs recommend for this grant. Scoped to any CloudWatch alarm
+        # in this account rather than one specific alarm ARN, same
+        # "shared account-wide key" reasoning as the CloudFront statement
+        # above.
+        Sid    = "AllowCloudWatchAlarmsToPublishToSNS"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudwatch.amazonaws.com"
+        }
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:Decrypt",
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      },
     ]
   })
 }
