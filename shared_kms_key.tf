@@ -111,6 +111,32 @@ resource "aws_kms_key" "shared" {
           }
         }
       },
+      {
+        # CloudFront's own required key-policy shape for an
+        # OAC-protected S3 origin using SSE-KMS, per AWS's documentation
+        # for this exact scenario (private-content-restricting-access-to-s3.html,
+        # "SSE-KMS" section) -- fixes website's own AWS-0132. Scoped to
+        # any CloudFront distribution in this account rather than one
+        # specific distribution ARN: this key is deliberately shared
+        # account-wide, so a future second distribution needing the same
+        # grant is already covered without editing this file again.
+        Sid    = "AllowCloudFrontServicePrincipalSSEKMS"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey*",
+        ]
+        Resource = "*"
+        Condition = {
+          StringLike = {
+            "AWS:SourceArn" = "arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/*"
+          }
+        }
+      },
     ]
   })
 }
