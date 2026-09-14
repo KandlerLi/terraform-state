@@ -27,9 +27,18 @@ resource "aws_iam_user" "k3s_bootstrap_local" {
   }
 }
 
-resource "aws_iam_user_policy" "k3s_bootstrap_local_terraform_operator" {
-  name = "terraform-operator"
-  user = aws_iam_user.k3s_bootstrap_local.name
+#trivy:ignore:AVD-AWS-0123
+resource "aws_iam_group" "k3s_bootstrap_local" {
+  # Fixes trivy's AWS-0143, same reasoning and same AWS-0123 suppression
+  # as home_infra_local's own identical fix -- a scripted,
+  # non-interactive identity with only a static access key, no console
+  # login to attach an MFA condition to.
+  name = "k3s-bootstrap-local"
+}
+
+resource "aws_iam_group_policy" "k3s_bootstrap_local_terraform_operator" {
+  name  = "terraform-operator"
+  group = aws_iam_group.k3s_bootstrap_local.name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -77,6 +86,12 @@ resource "aws_iam_user_policy" "k3s_bootstrap_local_terraform_operator" {
       },
     ]
   })
+}
+
+resource "aws_iam_group_membership" "k3s_bootstrap_local" {
+  name  = "k3s-bootstrap-local-members"
+  group = aws_iam_group.k3s_bootstrap_local.name
+  users = [aws_iam_user.k3s_bootstrap_local.name]
 }
 
 variable "k3s_bootstrap_local_pgp_key" {
