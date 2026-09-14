@@ -37,19 +37,48 @@ resource "aws_s3_bucket_public_access_block" "cloudtrail_logs" {
   restrict_public_buckets = true
 }
 
+# Fixes trivy's AWS-0090 (bucket versioning) and AWS-0132 (bucket should
+# use a CMK, not the default AES256) together with the encryption
+# resource below -- versioning needs its own noncurrent-version
+# expiration rule (added to the lifecycle configuration below) since the
+# existing 365-day rule only ever covered the current version.
+resource "aws_s3_bucket_versioning" "cloudtrail_logs" {
+  bucket = aws_s3_bucket.cloudtrail_logs.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "cloudtrail_logs" {
   bucket = aws_s3_bucket.cloudtrail_logs.id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.shared.arn
     }
   }
 }
 
+# Fixes trivy's AWS-0089/AWS-0163 (bucket access logging) -- this bucket
+# logs to itself under a distinct prefix rather than a separate dedicated
+# logging-target bucket. AWS explicitly supports this; a second bucket
+# for access logs this rarely read would be pure overhead at this
+# account's actual scale (same "fractions of a cent/month" cost
+# reasoning as the lifecycle rule below).
+resource "aws_s3_bucket_logging" "cloudtrail_logs" {
+  bucket        = aws_s3_bucket.cloudtrail_logs.id
+  target_bucket = aws_s3_bucket.cloudtrail_logs.id
+  target_prefix = "access-logs/"
+}
+
 # These logs are for after-the-fact investigation, not long-term audit
 # retention -- expire them well before their storage cost could ever
-# become noticeable.
+# become noticeable. noncurrent_version_expiration added alongside
+# versioning above, or noncurrent versions from S3's own access-log
+# writes and CloudTrail's log deliveries would accumulate forever
+# instead of following the same 365-day intent as the current version.
 resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail_logs" {
   bucket = aws_s3_bucket.cloudtrail_logs.id
 
@@ -59,6 +88,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail_logs" {
 
     expiration {
       days = 365
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 365
     }
   }
 }
@@ -118,18 +151,72 @@ resource "aws_s3_bucket_policy" "cloudtrail_logs" {
   policy = data.aws_iam_policy_document.cloudtrail_logs.json
 }
 
+# Fixes trivy's AWS-0162 -- CloudTrail should deliver to CloudWatch Logs
+# in addition to S3, not only S3. Low added ingestion cost at this
+# account's actual management-event volume, same cost reasoning as
+# everything else in this file. Encrypted with the same shared CMK as
+# every other log group in this workspace.
+resource "aws_cloudwatch_log_group" "account_baseline" {
+  name              = "/aws/cloudtrail/account-baseline"
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.shared.arn
+}
+
+resource "aws_iam_role" "cloudtrail_cloudwatch_logs" {
+  name = "cloudtrail-cloudwatch-logs"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "cloudtrail.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "cloudtrail_cloudwatch_logs" {
+  name = "deliver-to-cloudwatch-logs"
+  role = aws_iam_role.cloudtrail_cloudwatch_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "WriteCloudTrailLogs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "${aws_cloudwatch_log_group.account_baseline.arn}:*"
+      },
+    ]
+  })
+}
+
 # The trail itself. Needs the bucket policy above to already exist --
 # CloudTrail validates write access to the bucket at creation time --
 # hence the explicit depends_on rather than relying on the implicit
-# resource-attribute dependency alone.
+# resource-attribute dependency alone. Same reasoning extends to the
+# CloudWatch Logs delivery role's own policy.
 resource "aws_cloudtrail" "account_baseline" {
   name                          = "account-baseline"
   s3_bucket_name                = aws_s3_bucket.cloudtrail_logs.id
   include_global_service_events = true
   is_multi_region_trail         = true
   enable_log_file_validation    = true
+  # Fixes trivy's AWS-0015 -- CloudTrail's own log delivery encrypted
+  # with the shared CMK, not just relying on the destination bucket's
+  # own (also now CMK-encrypted) default encryption.
+  kms_key_id = aws_kms_key.shared.arn
 
-  depends_on = [aws_s3_bucket_policy.cloudtrail_logs]
+  cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.account_baseline.arn}:*"
+  cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cloudwatch_logs.arn
+
+  depends_on = [
+    aws_s3_bucket_policy.cloudtrail_logs,
+    aws_iam_role_policy.cloudtrail_cloudwatch_logs,
+  ]
 }
 
 # Flags any IAM user, role, or S3 bucket reachable from outside this

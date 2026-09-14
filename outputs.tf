@@ -13,7 +13,7 @@ output "aws_region" {
   value       = var.aws_region
 }
 
-output "logs_kms_key_arn" {
-  description = "ARN of the shared CMK for CloudWatch Logs encryption"
-  value       = aws_kms_key.logs.arn
+output "shared_kms_key_arn" {
+  description = "ARN of the shared CMK for AWS-managed encryption across this account"
+  value       = aws_kms_key.shared.arn
 }

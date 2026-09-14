@@ -33,6 +33,32 @@ resource "aws_iam_user" "julian" {
   }
 }
 
+#trivy:ignore:AVD-AWS-0123
+resource "aws_iam_group" "julian" {
+  # Fixes trivy's AWS-0143 (policies attached directly to a user) --
+  # covers both policy attachments below, moved from user- to
+  # group-scoped attachments with julian as this group's only member.
+  #
+  # AWS-0123 (MFA not enforced for group) suppressed here too, but for a
+  # different reason than every other identity in this workspace: julian
+  # already signs in via a real MFA-backed browser OAuth flow (`aws
+  # login`, AllowLocalDevelopmentSignIn below) rather than having no
+  # session at all like a machine credential -- so unlike those, this
+  # isn't a false positive. It's deliberately deferred rather than fixed
+  # here: adding a real aws:MultiFactorAuthPresent condition is a
+  # separate, higher-stakes change that needs a registered and tested
+  # MFA device confirmed working first, since getting it wrong risks
+  # locking out this account's own operator identity. Tracked in
+  # PARKED.md.
+  name = "julian"
+}
+
+resource "aws_iam_group_membership" "julian" {
+  name  = "julian-members"
+  group = aws_iam_group.julian.name
+  users = [aws_iam_user.julian.name]
+}
+
 # AdministratorAccess was imported here, verified alongside the scoped
 # policy below via real repo-infra plans under julian (both a clean
 # refresh and a clean "no changes" plan), and detached on 2026-08-23 --
@@ -49,8 +75,8 @@ resource "aws_iam_user" "julian" {
 # it can't be used to read Terraform state contents or secrets. Being
 # read-only, it doesn't touch the self-escalation guarantee below --
 # read access can reveal permissions, never grant them.
-resource "aws_iam_user_policy_attachment" "julian_view_only" {
-  user       = aws_iam_user.julian.name
+resource "aws_iam_group_policy_attachment" "julian_view_only" {
+  group      = aws_iam_group.julian.name
   policy_arn = "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"
 }
 
@@ -216,7 +242,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
   })
 }
 
-resource "aws_iam_user_policy_attachment" "julian_terraform_operator" {
-  user       = aws_iam_user.julian.name
+resource "aws_iam_group_policy_attachment" "julian_terraform_operator" {
+  group      = aws_iam_group.julian.name
   policy_arn = aws_iam_policy.julian_terraform_operator.arn
 }

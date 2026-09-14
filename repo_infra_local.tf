@@ -25,6 +25,17 @@ resource "aws_iam_user" "repo_infra_local" {
   }
 }
 
+#trivy:ignore:AVD-AWS-0123
+resource "aws_iam_group" "repo_infra_local" {
+  # Fixes trivy's AWS-0143, same reasoning and same AWS-0123 suppression
+  # as home_infra_local's/k3s_bootstrap_local's own identical fix -- a
+  # scripted, non-interactive identity, only ever authenticating via a
+  # static access key, never signing in interactively (unlike julian's
+  # own MFA-backed browser OAuth flow), so there's no session for an MFA
+  # condition to attach to.
+  name = "repo-infra-local"
+}
+
 # Copied from julian's own terraform-operator policy in operator.tf,
 # minus two things this identity doesn't need: AllowLocalDevelopmentSignIn
 # (that's specifically for `aws login`'s browser OAuth exchange -- this
@@ -33,9 +44,9 @@ resource "aws_iam_user" "repo_infra_local" {
 # (that's for julian's own ad-hoc human investigation across the whole
 # account -- this identity only ever runs a scripted plan/apply against
 # repo-infra specifically, nothing broader).
-resource "aws_iam_user_policy" "repo_infra_local_terraform_operator" {
-  name = "terraform-operator"
-  user = aws_iam_user.repo_infra_local.name
+resource "aws_iam_group_policy" "repo_infra_local_terraform_operator" {
+  name  = "terraform-operator"
+  group = aws_iam_group.repo_infra_local.name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -102,6 +113,12 @@ resource "aws_iam_user_policy" "repo_infra_local_terraform_operator" {
       },
     ]
   })
+}
+
+resource "aws_iam_group_membership" "repo_infra_local" {
+  name  = "repo-infra-local-members"
+  group = aws_iam_group.repo_infra_local.name
+  users = [aws_iam_user.repo_infra_local.name]
 }
 
 variable "repo_infra_local_pgp_key" {

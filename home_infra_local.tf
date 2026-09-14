@@ -25,9 +25,24 @@ resource "aws_iam_user" "home_infra_local" {
   }
 }
 
-resource "aws_iam_user_policy" "home_infra_local_read_secrets" {
-  name = "read-secrets"
-  user = aws_iam_user.home_infra_local.name
+#trivy:ignore:AVD-AWS-0123
+resource "aws_iam_group" "home_infra_local" {
+  # Fixes trivy's AWS-0143 (policy attached directly to a user) --
+  # home-infra-local is a scripted, non-interactive credential (see this
+  # file's own header comment), so this group will only ever have this
+  # one member; the indirection is cheap and clears the finding without
+  # changing the effective permissions.
+  #
+  # Also suppresses the AWS-0123 (MFA not enforced) this in turn trips:
+  # this identity has no console password or login profile at all, only
+  # a static access key for Ansible's own boto3 calls -- MFA has no
+  # session to attach a condition to for raw access-key auth.
+  name = "home-infra-local"
+}
+
+resource "aws_iam_group_policy" "home_infra_local_read_secrets" {
+  name  = "read-secrets"
+  group = aws_iam_group.home_infra_local.name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -54,6 +69,12 @@ resource "aws_iam_user_policy" "home_infra_local_read_secrets" {
       },
     ]
   })
+}
+
+resource "aws_iam_group_membership" "home_infra_local" {
+  name  = "home-infra-local-members"
+  group = aws_iam_group.home_infra_local.name
+  users = [aws_iam_user.home_infra_local.name]
 }
 
 variable "home_infra_local_pgp_key" {
