@@ -1,16 +1,26 @@
 name: Security scan
 
-# Non-blocking trivy config IaC misconfiguration scan -- first step of the
-# workspace-level security audit (PARKED.md). Deliberately its own
-# workflow, so a finding here can never block anything. This is the first
+# trivy config IaC misconfiguration scan -- first step of the
+# workspace-level security audit (PARKED.md). Its own workflow, separate
+# from anything that could apply real infrastructure (this repo has none
+# of that in CI at all -- human-apply-only, see below), so a finding on
+# the push trigger can never block anything by itself. This is the first
 # GitHub Actions workflow in this repo: it deliberately runs on a
 # GitHub-hosted runner (runs_on override below) rather than provisioning a
 # self-hosted one, since this repo otherwise has none by design (see
 # CLAUDE.md's repo map / decisions.md's self-escalation reasoning for why
 # this repo stays "never CI" beyond this one credential-less scan). See
 # gha-common's own README.md for the reusable workflow's full details.
+#
+# pull_request added 2026-09-14, same as dyndns#31, so this can become a
+# required status check later (blocking PR merges on any finding, via
+# required_status_check_contexts in repo-infra's own config.yml) --
+# deliberately NOT yet added there: add the required-check entry only
+# once a run against main comes back clean, same reasoning as dyndns's
+# own PARKED.md entry.
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
