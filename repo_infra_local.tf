@@ -111,6 +111,21 @@ resource "aws_iam_group_policy" "repo_infra_local_terraform_operator" {
           "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-github-plan",
         ]
       },
+      {
+        # repo-infra's own aws_policies.tf looks up the shared CMK by
+        # alias (data "aws_kms_alias" "shared") to bake its real ARN
+        # into whichever repo's IAM policy needs kms:DescribeKey --
+        # that lookup runs under this identity's own context, not
+        # through ManageRepoDeployRoles' pass-through above. No
+        # resource-level scoping possible for this action (AWS requires
+        # Resource "*"). Found live 2026-09-14: repo-infra's own plan
+        # failed with AccessDeniedException the moment that data source
+        # was added, before it ever got to managing any repo's role.
+        Sid      = "ListKmsAliases"
+        Effect   = "Allow"
+        Action   = "kms:ListAliases"
+        Resource = "*"
+      },
     ]
   })
 }
