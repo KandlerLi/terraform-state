@@ -13,12 +13,13 @@
 #   scripts/roll-out.sh plan
 #   scripts/roll-out.sh apply
 #
-# What this script does automate: repo_infra_local_pgp_key and
-# k3s_bootstrap_local_pgp_key are required variables with no default
-# (deliberately -- see their own descriptions), so Terraform prompts
-# for both on *every* apply in this root, even ones that don't touch
-# either access key. Both are just a deterministic re-export of this
-# workspace's existing GPG public key, safe to recompute every run.
+# What this script does automate: repo_infra_local_pgp_key,
+# k3s_bootstrap_local_pgp_key, and home_infra_local_pgp_key are required
+# variables with no default (deliberately -- see their own
+# descriptions), so Terraform prompts for all three on *every* apply in
+# this root, even ones that don't touch any access key. All three are
+# just a deterministic re-export of this workspace's existing GPG public
+# key, safe to recompute every run.
 
 set -euo pipefail
 
@@ -40,6 +41,7 @@ repo_root="$(dirname "${script_dir}")"
 gpg_fingerprint="6D8B16CB662983A54B4AF1466F0B5C2AB1509600"
 export TF_VAR_repo_infra_local_pgp_key="$(gpg --export "${gpg_fingerprint}" | base64)"
 export TF_VAR_k3s_bootstrap_local_pgp_key="$(gpg --export "${gpg_fingerprint}" | base64)"
+export TF_VAR_home_infra_local_pgp_key="$(gpg --export "${gpg_fingerprint}" | base64)"
 
 cd "${repo_root}"
 
@@ -49,9 +51,9 @@ terraform validate
 # -input=false on plan/apply too, not just init -- see
 # github/repo-infra's own roll-out.sh for why (a missing/unexported
 # required variable otherwise drops into a confusing interactive
-# prompt instead of failing outright). Doesn't affect
-# repo_infra_local_pgp_key/k3s_bootstrap_local_pgp_key above -- those
-# are always exported by this script itself before this point.
+# prompt instead of failing outright). Doesn't affect the three pgp_key
+# variables above -- those are always exported by this script itself
+# before this point.
 terraform plan -input=false
 
 if [ "${mode}" = "apply" ]; then
