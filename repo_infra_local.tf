@@ -126,6 +126,19 @@ resource "aws_iam_group_policy" "repo_infra_local_terraform_operator" {
         Action   = "kms:ListAliases"
         Resource = "*"
       },
+      {
+        # aws_kms_alias's own resolution calls DescribeKey too, not just
+        # ListAliases -- found live 2026-09-14, one layer deeper than
+        # ListKmsAliases above: same data source, same lookup, just a
+        # second AWS API call needed to fully resolve it. Referencing
+        # aws_kms_key.shared.arn directly (a real resource in this same
+        # root, via shared_kms_key.tf) rather than another data source
+        # lookup -- no need to re-derive what this repo already owns.
+        Sid      = "DescribeSharedKmsKey"
+        Effect   = "Allow"
+        Action   = "kms:DescribeKey"
+        Resource = aws_kms_key.shared.arn
+      },
     ]
   })
 }
