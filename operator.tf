@@ -285,6 +285,11 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           # home-infra/authelia: the last group in the campaign, migrated
           # to aws/secrets-manager 2026-09-12.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/authelia-*",
+
+          # k3s-apps/bulwark: a genuinely new secret, not a migration --
+          # Bulwark webmail's own Authelia OIDC client secret (plaintext
+          # half; home-infra/authelia holds the matching hash).
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/bulwark-*",
         ]
       },
     ]
