@@ -290,6 +290,11 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           # Bulwark webmail's own Authelia OIDC client secret (plaintext
           # half; home-infra/authelia holds the matching hash).
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/bulwark-*",
+
+          # k3s-apps/stalwart: a genuinely new secret, not a migration --
+          # the Stalwart management-API token infra/k3s-apps' Terraform
+          # provider authenticates with.
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/stalwart-*",
         ]
       },
     ]
