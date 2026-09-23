@@ -5,6 +5,7 @@
 *.tfvars
 *.tfvars.json
 !*.tfvars.example
+!terraform.tfvars
 crash.log
 crash.*.log
 override.tf
