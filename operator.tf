@@ -48,8 +48,7 @@ resource "aws_iam_group_membership" "julian" {
 
 # Fixes trivy's AWS-0123 for real (not suppressed) -- the console
 # sign-in + MFA device README.md's own "Enabling console sign-in and MFA
-# for julian" section walks through are confirmed set up and working
-# (2026-09-14), so this is no longer deferred pending that confirmation.
+# for julian" section walks through are confirmed set up and working.
 #
 # A separate inline group policy rather than folded into
 # julian_terraform_operator above, deliberately: this is a DENY that
@@ -110,9 +109,8 @@ resource "aws_iam_group_policy" "julian_require_mfa" {
 
 # AdministratorAccess was imported here, verified alongside the scoped
 # policy below via real repo-infra plans under julian (both a clean
-# refresh and a clean "no changes" plan), and detached on 2026-08-23 --
-# see ADR 0018 and this root's README for the two-apply sequence this
-# came from.
+# refresh and a clean "no changes" plan), and detached -- see ADR 0018
+# and this root's README for the two-apply sequence this came from.
 
 # Read-only, account-wide visibility -- for ad-hoc verification (did a
 # deploy actually work, what does this role/alarm/subscription look
@@ -136,12 +134,12 @@ resource "aws_iam_group_policy_attachment" "julian_view_only" {
 # julian never applies terraform-state itself; that stays root-only.
 #
 # Customer-managed policy (aws_iam_policy + a separate attachment
-# below), not an inline aws_iam_user_policy -- found live 2026-09-09:
-# adding the Secrets Manager statement below pushed this policy's JSON
-# past AWS's hard 2048-byte cap on inline user policies (a fixed
-# ceiling for that resource type, not something a quota increase can
-# raise). A managed policy's own quota (6144 bytes) has real headroom
-# for this policy to keep growing the way it already has.
+# below), not an inline aws_iam_user_policy -- adding the Secrets
+# Manager statement below pushed this policy's JSON past AWS's hard
+# 2048-byte cap on inline user policies (a fixed ceiling for that
+# resource type, not something a quota increase can raise). A managed
+# policy's own quota (6144 bytes) has real headroom for this policy to
+# keep growing the way it already has.
 resource "aws_iam_policy" "julian_terraform_operator" {
   name = "terraform-operator"
 
@@ -225,28 +223,21 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         ]
       },
       {
-        # The workspace's move off SOPS onto AWS Secrets Manager
-        # (PARKED.md's "Secrets sprawl" item). julian's grant on every
-        # secret container stays here -- the containers themselves are
-        # migrating out to aws/secrets-manager one at a time, but
-        # the grant machinery does not follow them (it belongs next to
-        # julian's other operator permissions, in one file). PutSecretValue
-        # is included alongside the reads: julian edits/rotates these
-        # values (aws secretsmanager put-secret-value), replacing the old
-        # `sops <file>` flow -- an operator managing their own secrets
-        # needs write, not just read.
+        # The workspace's own move off SOPS onto AWS Secrets Manager --
+        # see docs/home-infra-ai-context's decisions.md for the full
+        # history. julian's grant on every secret container stays here
+        # -- the containers themselves migrated out to
+        # aws/secrets-manager one at a time, but the grant machinery
+        # does not follow them (it belongs next to julian's other
+        # operator permissions, in one file). PutSecretValue is
+        # included alongside the reads: julian edits/rotates these
+        # values (aws secretsmanager put-secret-value), an operator
+        # managing their own secrets needs write, not just read.
         #
-        # Every group has now migrated to aws/secrets-manager
-        # (home-infra/authelia, 2026-09-12, was the last) -- every entry
-        # below is a wildcard ARN string (the trailing -* covers the
-        # random suffix AWS appends), not a real resource reference,
-        # since secrets_manager.tf no longer defines any of these
-        # containers itself. This whole statement is a candidate for
-        # the campaign's final sweep: deleting secrets_manager.tf's
-        # `removed` blocks doesn't require deleting this grant (julian
-        # still needs read/write on these secrets regardless of which
-        # repo owns the container), so it stays as-is even once that
-        # cleanup happens.
+        # Every entry below is a wildcard ARN string (the trailing -*
+        # covers the random suffix AWS appends), not a real resource
+        # reference, since this repo's own Terraform no longer defines
+        # any of these containers itself.
         Sid    = "ManageSecretsManagerSecrets"
         Effect = "Allow"
         Action = [
@@ -255,7 +246,6 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "secretsmanager:PutSecretValue",
         ]
         Resource = [
-          # migrated to aws/secrets-manager:
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/sankey-export-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/grafana-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/open-webui-*",
@@ -264,35 +254,14 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/monitoring-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/nextcloud-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/github-runner-*",
-
-          # dyndns/fritzbox is different from every entry above: it was
-          # never a real resource reference in this file at all -- its
-          # container was created directly in aws/dyndns (a real
-          # CI/PR-gated repo, not this root's own secrets_manager.tf),
-          # so julian never had an explicit grant on it until this
-          # migration added one. Migrated to aws/secrets-manager
-          # 2026-09-12 the same way as everything else, just arriving
-          # here for the first time rather than moving from the first
-          # group.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:dyndns/fritzbox-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/blocky-*",
-
-          # A genuinely new secret, not a migration -- split out of
-          # home-infra/home-agent 2026-09-12 (see
-          # aws/secrets-manager's own module for why).
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/ghcr-pull-token-*",
-
-          # home-infra/authelia: the last group in the campaign, migrated
-          # to aws/secrets-manager 2026-09-12.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/authelia-*",
-
-          # k3s-apps/bulwark: a genuinely new secret, not a migration --
           # Bulwark webmail's own Authelia OIDC client secret (plaintext
           # half; home-infra/authelia holds the matching hash).
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/bulwark-*",
-
-          # k3s-apps/stalwart: a genuinely new secret, not a migration --
-          # the Stalwart management-API token infra/k3s-apps' Terraform
+          # The Stalwart management-API token infra/k3s-apps' Terraform
           # provider authenticates with.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/stalwart-*",
         ]
