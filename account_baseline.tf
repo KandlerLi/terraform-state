@@ -1,7 +1,5 @@
-# Account-wide baseline security hardening (PARKED.md, came up
-# 2026-08-31 while diagnosing an unrelated flaky dyndns PR check that
-# surfaced this as a general account-hygiene gap, not tied to that
-# incident). Lives here, not in a new root or in repo-infra: these are
+# Account-wide baseline security hardening. Lives here, not in a new
+# root or in repo-infra: these are
 # account-wide, essentially-set-once settings with no natural
 # per-repository owner -- repo-infra covers per-repository GitHub/AWS
 # deploy-role config, this root already covers the state bucket and the

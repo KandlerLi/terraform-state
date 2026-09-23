@@ -36,9 +36,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" 
   # terraform plan/apply would start failing account-wide the moment
   # this applies. Suppressed rather than left visibly failing so the
   # required status check (repo-infra's own config.yml) means something
-  # -- needs a full audit of every repo's IAM permissions first
-  # (PARKED.md) before this can actually be fixed, not something to flip
-  # alongside an unrelated KMS-key PR.
+  # -- see BACKLOG.md's "terraform-state's S3 bucket is suppressed
+  # AES256" entry for the audit this needs before it can actually be
+  # fixed.
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"

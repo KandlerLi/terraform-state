@@ -67,18 +67,16 @@ resource "aws_iam_group_policy" "k3s_bootstrap_local_terraform_operator" {
         Resource = "${local.state_bucket_arn}/k3s-bootstrap/*"
       },
       {
-        # The SOPS-to-Secrets-Manager cutover (PARKED.md): this root's
-        # own github_runner_github_token now comes straight from
-        # home-infra/github-runner's own container instead of a
-        # human-supplied TF_VAR_* at apply time. Read-only -- unlike
-        # julian's own ManageSecretsManagerSecrets statement below,
-        # this is a scripted, non-interactive identity (see this
-        # file's own header comment); julian's own credentials stay
-        # the only way to edit/rotate the value. Wildcard ARN string,
-        # not a resource reference, since the container itself
-        # migrated to aws/secrets-manager 2026-09-12 -- this
-        # identity's grant follows the same pattern julian's own does
-        # for every migrated secret.
+        # This root's own github_runner_github_token comes straight
+        # from home-infra/github-runner's own Secrets Manager
+        # container instead of a human-supplied TF_VAR_* at apply
+        # time. Read-only -- unlike julian's own
+        # ManageSecretsManagerSecrets statement (operator.tf), this is
+        # a scripted, non-interactive identity; julian's own
+        # credentials stay the only way to edit/rotate the value.
+        # Wildcard ARN string, not a resource reference, since the
+        # container itself lives in aws/secrets-manager, not this
+        # repo's own Terraform.
         Sid      = "ReadGithubRunnerSecret"
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
