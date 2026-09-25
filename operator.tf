@@ -264,6 +264,8 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           # The Stalwart management-API token infra/k3s-apps' Terraform
           # provider authenticates with.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/stalwart-*",
+          # Paperless-ngx's own Authelia OIDC client secret (ADR 0023).
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/paperless-*",
         ]
       },
     ]
