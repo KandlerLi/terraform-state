@@ -284,7 +284,7 @@ about `julian` needing read/write on the values themselves (and
 `home-infra/github-runner` specifically, same reasoning). See
 `aws/secrets-manager/README.md` for the migration-status table,
 the per-group docs (moved there too), and
-`docs/home-infra-docs/docs/runbooks/rotate-secrets.md` for rotation.
+`home-infra-docs/docs/runbooks/rotate-secrets.md` for rotation.
 
 ## repo-infra-local Identity
 

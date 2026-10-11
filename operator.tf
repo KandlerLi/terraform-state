@@ -224,7 +224,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
       },
       {
         # The workspace's own move off SOPS onto AWS Secrets Manager --
-        # see docs/home-infra-docs' decisions.md for the full
+        # see home-infra-docs' decisions.md for the full
         # history. julian's grant on every secret container stays here
         # -- the containers themselves migrated out to
         # aws/secrets-manager one at a time, but the grant machinery
