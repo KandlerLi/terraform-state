@@ -224,10 +224,10 @@ resource "aws_iam_policy" "julian_terraform_operator" {
       },
       {
         # The workspace's own move off SOPS onto AWS Secrets Manager --
-        # see docs/home-infra-docs' decisions.md for the full
+        # see KandlerLi/home-infra-docs' decisions.md for the full
         # history. julian's grant on every secret container stays here
         # -- the containers themselves migrated out to
-        # aws/secrets-manager one at a time, but the grant machinery
+        # KandlerLi/secrets-manager one at a time, but the grant machinery
         # does not follow them (it belongs next to julian's other
         # operator permissions, in one file). PutSecretValue is
         # included alongside the reads: julian edits/rotates these
@@ -261,7 +261,7 @@ resource "aws_iam_policy" "julian_terraform_operator" {
           # Bulwark webmail's own Authelia OIDC client secret (plaintext
           # half; home-infra/authelia holds the matching hash).
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/bulwark-*",
-          # The Stalwart management-API token infra/k3s-apps' Terraform
+          # The Stalwart management-API token KandlerLi/k3s-apps' Terraform
           # provider authenticates with.
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/stalwart-*",
           # Paperless-ngx's own Authelia OIDC client secret (ADR 0023).

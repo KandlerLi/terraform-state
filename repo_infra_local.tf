@@ -159,7 +159,7 @@ variable "repo_infra_local_pgp_key" {
     identity's static key has no expiry of its own -- worth the extra
     step). Reuses this workspace's existing pass/sops GPG key
     (6D8B16CB662983A54B4AF1466F0B5C2AB1509600), already used for
-    infra/home-infra's own scripts/sync_secrets_to_pass.py:
+    KandlerLi/home-infra's own scripts/sync_secrets_to_pass.py:
 
         gpg --export 6D8B16CB662983A54B4AF1466F0B5C2AB1509600 | base64
 

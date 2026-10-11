@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Mimics what a real CI pipeline would do for this repo's own apply,
-# run locally -- minus AWS credentials. Unlike github/repo-infra's and
-# bootstrap/k3s-bootstrap's own scripts/roll-out.sh, this one
+# run locally -- minus AWS credentials. Unlike KandlerLi/repo-infra's and
+# KandlerLi/k3s-bootstrap's own scripts/roll-out.sh, this one
 # deliberately does NOT set up AWS credentials: this root manages the
 # identities used to run the *other* two locally (julian, and now
 # repo-infra-local/k3s-bootstrap-local), so it stays applied only as
@@ -49,7 +49,7 @@ terraform init -input=false
 terraform fmt -check -recursive
 terraform validate
 # -input=false on plan/apply too, not just init -- see
-# github/repo-infra's own roll-out.sh for why (a missing/unexported
+# KandlerLi/repo-infra's own roll-out.sh for why (a missing/unexported
 # required variable otherwise drops into a confusing interactive
 # prompt instead of failing outright). Doesn't affect the three pgp_key
 # variables above -- those are always exported by this script itself

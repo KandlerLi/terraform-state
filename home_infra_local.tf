@@ -1,4 +1,4 @@
-# A scripted, non-interactive identity for infra/home-infra's own
+# A scripted, non-interactive identity for KandlerLi/home-infra's own
 # Ansible runs, mirroring repo_infra_local.tf/k3s_bootstrap_local.tf's
 # exact reasoning and lessons learned -- see repo_infra_local.tf's own
 # header comment for why this is a deliberate, scoped exception to
@@ -6,7 +6,7 @@
 # root specifically (self-escalation guarantee: this identity's policy
 # grants it no IAM action over IAM users, groups, or itself).
 #
-# Simplest of the three: infra/home-infra has no Terraform state of
+# Simplest of the three: KandlerLi/home-infra has no Terraform state of
 # its own at all (pure Ansible) -- no S3 statements needed. Its only
 # AWS touchpoint is `ansible-playbook site.yml`'s own
 # lookup('amazon.aws.secretsmanager_secret', ...) calls for exactly

@@ -1,4 +1,4 @@
-# A scripted, non-interactive identity for bootstrap/k3s-bootstrap's
+# A scripted, non-interactive identity for KandlerLi/k3s-bootstrap's
 # own local-apply use case, mirroring repo_infra_local.tf's exact
 # reasoning and lessons learned -- see that file's own header comment
 # for why this is a deliberate, scoped exception to ADR 0018 rather
@@ -75,7 +75,7 @@ resource "aws_iam_group_policy" "k3s_bootstrap_local_terraform_operator" {
         # a scripted, non-interactive identity; julian's own
         # credentials stay the only way to edit/rotate the value.
         # Wildcard ARN string, not a resource reference, since the
-        # container itself lives in aws/secrets-manager, not this
+        # container itself lives in KandlerLi/secrets-manager, not this
         # repo's own Terraform.
         Sid      = "ReadGithubRunnerSecret"
         Effect   = "Allow"
