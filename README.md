@@ -264,7 +264,7 @@ authenticator app pairing for zero real benefit.
 
 ### Read access vs. write access
 
-`julian`'s *write* permissions (the `terraform-operator` inline policy)
+`julian`'s *write* permissions (the `terraform-operator` managed policy)
 are scoped to exactly what `repo-infra` touches today — nothing broader.
 `julian` cannot manage this bucket or apply `terraform-state` itself; only
 root can. `julian` also has AWS's managed `ViewOnlyAccess` policy attached
