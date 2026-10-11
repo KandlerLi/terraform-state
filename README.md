@@ -57,7 +57,7 @@ automatically (both required variables with no default, so Terraform
 otherwise prompts for them on every apply in this root, even ones that
 don't touch either access key) and runs `fmt`/`validate`/`plan`/`apply`
 -- deliberately does **not** set up AWS credentials, unlike
-`github/repo-infra`'s and `bootstrap/k3s-bootstrap`'s own
+[`repo-infra`](https://github.com/KandlerLi/repo-infra)'s and [`k3s-bootstrap`](https://github.com/KandlerLi/k3s-bootstrap)'s own
 `scripts/roll-out.sh`. This root manages the identities those two use,
 so it stays applied only via an interactive `aws login` as root/an
 admin-equivalent identity, run yourself first (ADR 0018).
@@ -180,7 +180,7 @@ somewhere `julian` has no access to.
 ### First apply: importing `julian`
 
 ```bash
-cd bootstrap/terraform-state
+cd terraform-state
 terraform init
 terraform plan
 terraform apply
@@ -264,13 +264,13 @@ grant here if they come up often enough to be worth adding.
 ## Secrets Manager
 
 `secrets_manager.tf` used to create 10 secret *containers* (the
-SOPS-to-Secrets-Manager cutover, `PARKED.md`/`decisions.md`) — name
+SOPS-to-Secrets-Manager cutover, `decisions.md`) — name
 and `lifecycle { prevent_destroy = true }` only, never a value; real
 secret material was (and still is, wherever it lives now) set
 out-of-band via `aws secretsmanager put-secret-value`, the same way
 SOPS kept it out of plaintext git.
 
-**All 10 have since migrated** to `aws/secrets-manager`, one
+**All 10 have since migrated** to [`secrets-manager`](https://github.com/KandlerLi/secrets-manager), one
 group at a time, via the ADR 0006 / ADR 0010 no-destroy handoff
 (`home-infra/authelia`, the last, on 2026-09-12); `secrets_manager.tf`
 itself — by then nothing but `removed { ... destroy = false }` blocks
@@ -282,9 +282,9 @@ that grant was never really about which repo owns the container, only
 about `julian` needing read/write on the values themselves (and
 `k3s_bootstrap_local.tf`'s own `ReadGithubRunnerSecret` statement for
 `home-infra/github-runner` specifically, same reasoning). See
-`aws/secrets-manager/README.md` for the migration-status table,
+[`secrets-manager/README.md`](https://github.com/KandlerLi/secrets-manager/blob/main/README.md) for the migration-status table,
 the per-group docs (moved there too), and
-`home-infra-docs/docs/runbooks/rotate-secrets.md` for rotation.
+[`home-infra-docs/docs/runbooks/rotate-secrets.md`](https://github.com/KandlerLi/home-infra-docs/blob/main/docs/runbooks/rotate-secrets.md) for rotation.
 
 ## repo-infra-local Identity
 
@@ -319,10 +319,10 @@ Then, once, decrypt the new access key's secret and store both halves in
 `pass` (`repo-infra/scripts/roll-out.sh` reads from these two entries):
 
 ```bash
-pass insert --force --multiline aws/repo-infra-local/access-key-id <<< "$(terraform output -raw repo_infra_local_access_key_id)"
+pass insert --force --multiline repo-infra-local/access-key-id <<< "$(terraform output -raw repo_infra_local_access_key_id)"
 terraform output -raw repo_infra_local_encrypted_secret_access_key \
   | base64 -d | gpg -d \
-  | pass insert --force --multiline aws/repo-infra-local/secret-access-key
+  | pass insert --force --multiline repo-infra-local/secret-access-key
 ```
 
 Nothing above writes the decrypted secret to a file or this repo — it
@@ -330,7 +330,7 @@ only ever passes through this one pipeline into `pass`.
 
 ### Rotating `repo-infra-local`
 
-No automated reminder yet (tracked in the workspace's own `PARKED.md`)
+No automated reminder yet (tracked in the private task list)
 — a recommended cadence of every 90 days, done by hand:
 
 ```bash
@@ -345,7 +345,7 @@ no separate deactivation step.
 ## k3s-bootstrap-local Identity
 
 `k3s_bootstrap_local.tf` is the same shape as `repo-infra-local` above,
-for `bootstrap/k3s-bootstrap`'s own `scripts/roll-out.sh` instead.
+for [`k3s-bootstrap`](https://github.com/KandlerLi/k3s-bootstrap)'s own `scripts/roll-out.sh` instead.
 Simpler policy — that repo's Terraform only ever needs S3 read/write on
 its own `k3s-bootstrap/*` state prefix, never IAM/OIDC management (it
 manages Kubernetes RBAC and PersistentVolumes via the `kubernetes`
@@ -363,10 +363,10 @@ terraform apply
 ```
 
 ```bash
-pass insert --force --multiline aws/k3s-bootstrap-local/access-key-id <<< "$(terraform output -raw k3s_bootstrap_local_access_key_id)"
+pass insert --force --multiline k3s-bootstrap-local/access-key-id <<< "$(terraform output -raw k3s_bootstrap_local_access_key_id)"
 terraform output -raw k3s_bootstrap_local_encrypted_secret_access_key \
   | base64 -d | gpg -d \
-  | pass insert --force --multiline aws/k3s-bootstrap-local/secret-access-key
+  | pass insert --force --multiline k3s-bootstrap-local/secret-access-key
 ```
 
 ### Rotating `k3s-bootstrap-local`
@@ -382,8 +382,8 @@ then repeat the `pass insert` pair above.
 ## home-infra-local Identity
 
 `home_infra_local.tf` is the same shape as the two identities above, for
-`infra/home-infra`'s own `ansible-playbook site.yml` runs instead. The
-simplest of the three: `infra/home-infra` has no Terraform state of its
+[`home-infra`](https://github.com/KandlerLi/home-infra)'s own `ansible-playbook site.yml` runs instead. The
+simplest of the three: [`home-infra`](https://github.com/KandlerLi/home-infra) has no Terraform state of its
 own at all (pure Ansible) — no S3 statements needed. Its only AWS
 touchpoint is exactly two `lookup('amazon.aws.secretsmanager_secret', ...)`
 calls in `site.yml` (`home-infra/monitoring`, `home-infra/nextcloud`),
@@ -401,21 +401,21 @@ terraform apply
 ```
 
 ```bash
-pass insert --force --multiline aws/home-infra-local/access-key-id <<< "$(terraform output -raw home_infra_local_access_key_id)"
+pass insert --force --multiline home-infra-local/access-key-id <<< "$(terraform output -raw home_infra_local_access_key_id)"
 terraform output -raw home_infra_local_encrypted_secret_access_key \
   | base64 -d | gpg -d \
-  | pass insert --force --multiline aws/home-infra-local/secret-access-key
+  | pass insert --force --multiline home-infra-local/secret-access-key
 ```
 
 Then, before running `site.yml`, export the two standard AWS SDK
 environment variables from `pass` (matching how `repo-infra`'s/
 `k3s-bootstrap`'s own `scripts/roll-out.sh` source their identities —
-`infra/home-infra` has no equivalent wrapper script yet; export these
+[`home-infra`](https://github.com/KandlerLi/home-infra) has no equivalent wrapper script yet; export these
 by hand, or add one):
 
 ```bash
-export AWS_ACCESS_KEY_ID="$(pass show aws/home-infra-local/access-key-id)"
-export AWS_SECRET_ACCESS_KEY="$(pass show aws/home-infra-local/secret-access-key)"
+export AWS_ACCESS_KEY_ID="$(pass show home-infra-local/access-key-id)"
+export AWS_SECRET_ACCESS_KEY="$(pass show home-infra-local/secret-access-key)"
 ```
 
 ### Rotating `home-infra-local`
