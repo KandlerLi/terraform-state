@@ -1,19 +1,4 @@
-# Shared CMK for AWS-managed encryption across every resource in this
-# account -- account-wide security baseline, same category as this root's
-# other shared resources (the state bucket, the operator identity). One
-# key rather than one per repo/service, per an explicit choice ("Could we
-# for now use 1 KMS Key for all AWS resources?", 2026-09-14): a single
-# ~$1/month base charge instead of one per repo/bucket/trail that wants
-# encryption.
-#
-# The root statement below is what makes reuse across services possible
-# without a service-principal grant for each one: S3 (bucket SSE-KMS) and
-# CloudTrail's own kms_key_id both just need the *calling* IAM principal
-# to have kms:GenerateDataKey*/kms:Decrypt/kms:DescribeKey via its own IAM
-# policy, which a key policy granting the account root already allows --
-# only CloudWatch Logs needs an explicit service-principal statement here
-# (it authenticates as the logs.<region>.amazonaws.com service itself,
-# not as whatever IAM principal owns the log group).
+# One shared CMK for the account: see README, "Shared KMS key".
 resource "aws_kms_key" "shared" {
   description             = "Shared CMK for AWS-managed encryption across this account"
   deletion_window_in_days = 30
@@ -32,12 +17,7 @@ resource "aws_kms_key" "shared" {
         Resource = "*"
       },
       {
-        # CloudWatch Logs handles encryption transparently to whatever
-        # role writes log events -- only this key policy grant is
-        # needed, not any change to a log-writing role's own IAM policy.
-        # Scoped to log groups in this account/region only, matching the
-        # least-privilege pattern every other key/role in this workspace
-        # follows.
+        # CloudWatch Logs authenticates as its service principal; scoped to this account and region.
         Sid    = "AllowCloudWatchLogs"
         Effect = "Allow"
         Principal = {
@@ -58,13 +38,7 @@ resource "aws_kms_key" "shared" {
         }
       },
       {
-        # CloudTrail's own required key-policy shape for kms_key_id
-        # encryption, per AWS's documentation for this exact scenario --
-        # CloudTrail authenticates as the cloudtrail.amazonaws.com
-        # service, same reasoning as the CloudWatch Logs statement above.
-        # Scoped to this account's own trail via the encryption context
-        # condition, matching the account_baseline.tf trail's own ARN
-        # pattern.
+        # AWS's required shape for CloudTrail, scoped to this trail's encryption context.
         Sid    = "AllowCloudTrailToEncryptLogs"
         Effect = "Allow"
         Principal = {
@@ -88,10 +62,7 @@ resource "aws_kms_key" "shared" {
         Resource = "*"
       },
       {
-        # Whoever needs to read the delivered (encrypted) log files back
-        # -- scoped the same way AWS's own docs scope it: any principal
-        # in this account, but only for ciphertext produced under this
-        # trail's own encryption context.
+        # Reading delivered log files back, scoped to this trail's encryption context.
         Sid    = "AllowPrincipalsToDecryptLogFiles"
         Effect = "Allow"
         Principal = {
@@ -112,14 +83,7 @@ resource "aws_kms_key" "shared" {
         }
       },
       {
-        # CloudFront's own required key-policy shape for an
-        # OAC-protected S3 origin using SSE-KMS, per AWS's documentation
-        # for this exact scenario (private-content-restricting-access-to-s3.html,
-        # "SSE-KMS" section) -- fixes website's own AWS-0132. Scoped to
-        # any CloudFront distribution in this account rather than one
-        # specific distribution ARN: this key is deliberately shared
-        # account-wide, so a future second distribution needing the same
-        # grant is already covered without editing this file again.
+        # OAC-protected S3 origins with SSE-KMS (website); any distribution in this account.
         Sid    = "AllowCloudFrontServicePrincipalSSEKMS"
         Effect = "Allow"
         Principal = {
@@ -138,17 +102,7 @@ resource "aws_kms_key" "shared" {
         }
       },
       {
-        # CloudWatch Alarms' own required key-policy shape for
-        # publishing to an SSE-KMS-encrypted SNS topic, per AWS's own
-        # documentation for this exact scenario (sns-key-management.html,
-        # "Enable compatibility between event sources from AWS services
-        # and encrypted topics") -- fixes homeserver-health-check's own
-        # AWS-0095. aws:SourceAccount scopes this to alarms in this
-        # account specifically, the confused-deputy protection AWS's own
-        # docs recommend for this grant. Scoped to any CloudWatch alarm
-        # in this account rather than one specific alarm ARN, same
-        # "shared account-wide key" reasoning as the CloudFront statement
-        # above.
+        # CloudWatch Alarms publishing to SSE-KMS SNS topics; SourceAccount guards against the confused deputy.
         Sid    = "AllowCloudWatchAlarmsToPublishToSNS"
         Effect = "Allow"
         Principal = {

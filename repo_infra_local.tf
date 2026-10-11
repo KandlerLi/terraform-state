@@ -1,21 +1,4 @@
-# A second, narrower identity for the same repo-infra local-apply
-# use case julian's own operator.tf already covers -- but this one for
-# scripted, non-interactive use (infra/github-repo-infra's own
-# scripts/roll-out.sh) instead of julian's own MFA-backed, browser-OAuth
-# `aws login` flow (ADR 0018). Kept deliberately separate from julian
-# rather than giving julian a static key of its own: ADR 0018's own
-# "neither should flow through an agent session or get written
-# anywhere, committed or not" principle was specifically about julian's
-# own credential shape, chosen for exactly this reason -- this identity
-# is the accepted, scoped exception to that for one narrow purpose,
-# not a reason to weaken julian's own guarantee.
-#
-# Same self-escalation guarantee julian's own resources rely on: this
-# identity's policy grants it no IAM action over IAM users, groups, or
-# itself, and this file lives in the same root julian has zero access
-# to (see operator.tf's own header comment for why that placement is
-# what makes the guarantee hold at all) -- so this identity can never
-# widen its own access, same as julian can't widen its.
+# Scripted identity for repo-infra's roll-out.sh: see README, "Scripted identities".
 
 resource "aws_iam_user" "repo_infra_local" {
   name = "repo-infra-local"
@@ -27,23 +10,11 @@ resource "aws_iam_user" "repo_infra_local" {
 
 #trivy:ignore:AVD-AWS-0123
 resource "aws_iam_group" "repo_infra_local" {
-  # Fixes trivy's AWS-0143, same reasoning and same AWS-0123 suppression
-  # as home_infra_local's/k3s_bootstrap_local's own identical fix -- a
-  # scripted, non-interactive identity, only ever authenticating via a
-  # static access key, never signing in interactively (unlike julian's
-  # own MFA-backed browser OAuth flow), so there's no session for an MFA
-  # condition to attach to.
+  # Group for trivy AWS-0143; MFA can't apply to a static-key identity, so AWS-0123 is suppressed.
   name = "repo-infra-local"
 }
 
-# Copied from julian's own terraform-operator policy in operator.tf,
-# minus two things this identity doesn't need: AllowLocalDevelopmentSignIn
-# (that's specifically for `aws login`'s browser OAuth exchange -- this
-# identity only ever authenticates via static AWS_ACCESS_KEY_ID/
-# AWS_SECRET_ACCESS_KEY, never signs in interactively) and ViewOnlyAccess
-# (that's for julian's own ad-hoc human investigation across the whole
-# account -- this identity only ever runs a scripted plan/apply against
-# repo-infra specifically, nothing broader).
+# julian's operator policy minus AllowLocalDevelopmentSignIn and ViewOnlyAccess.
 resource "aws_iam_group_policy" "repo_infra_local_terraform_operator" {
   name  = "terraform-operator"
   group = aws_iam_group.repo_infra_local.name
@@ -85,9 +56,7 @@ resource "aws_iam_group_policy" "repo_infra_local_terraform_operator" {
         Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
       },
       {
-        # Same naming-convention scoping as julian's own identical
-        # statement -- this identity can manage per-repo CI roles but no
-        # other IAM principal (including itself).
+        # Only modules/repo's deploy/plan role names, never "*".
         Sid    = "ManageRepoDeployRoles"
         Effect = "Allow"
         Action = [
@@ -112,26 +81,14 @@ resource "aws_iam_group_policy" "repo_infra_local_terraform_operator" {
         ]
       },
       {
-        # repo-infra's own aws_policies.tf looks up the shared CMK by
-        # alias (data "aws_kms_alias" "shared") to bake its real ARN
-        # into whichever repo's IAM policy needs kms:DescribeKey --
-        # that lookup runs under this identity's own context, not
-        # through ManageRepoDeployRoles' pass-through above. No
-        # resource-level scoping possible for this action (AWS requires
-        # Resource "*").
+        # For aws_policies.tf's alias/shared lookup; no resource-level scoping.
         Sid      = "ListKmsAliases"
         Effect   = "Allow"
         Action   = "kms:ListAliases"
         Resource = "*"
       },
       {
-        # aws_kms_alias's own resolution calls DescribeKey too, not just
-        # ListAliases -- one layer deeper than ListKmsAliases above:
-        # same data source, same lookup, just a second AWS API call
-        # needed to fully resolve it. Referencing
-        # aws_kms_key.shared.arn directly (a real resource in this same
-        # root, via shared_kms_key.tf) rather than another data source
-        # lookup -- no need to re-derive what this repo already owns.
+        # Resolving the alias also calls DescribeKey.
         Sid      = "DescribeSharedKmsKey"
         Effect   = "Allow"
         Action   = "kms:DescribeKey"
@@ -170,16 +127,7 @@ variable "repo_infra_local_pgp_key" {
   sensitive   = true
 }
 
-# terraform apply -replace=aws_iam_access_key.repo_infra_local, then
-# repeat the decrypt-and-store step in README.md, rotates this -- no
-# automated reminder, just a documented manual procedure with a
-# recommended cadence.
-#
-# Deliberately NO prevent_destroy here, unlike the user above --
-# confirmed live: it directly blocks that exact rotation command (and
-# blocked recovering from a first apply attempt's own tainted state
-# after an unrelated pgp_key-format error). This resource is designed
-# to be replaced; only the identity it belongs to needs protecting.
+# No prevent_destroy: rotation is -replace. See README.
 resource "aws_iam_access_key" "repo_infra_local" {
   user    = aws_iam_user.repo_infra_local.name
   pgp_key = var.repo_infra_local_pgp_key
