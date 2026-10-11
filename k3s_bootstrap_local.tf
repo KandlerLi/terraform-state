@@ -1,23 +1,4 @@
-# A scripted, non-interactive identity for KandlerLi/k3s-bootstrap's
-# own local-apply use case, mirroring repo_infra_local.tf's exact
-# reasoning and lessons learned -- see that file's own header comment
-# for why this is a deliberate, scoped exception to ADR 0018 rather
-# than a weakening of it, and why it's kept in this root specifically
-# (self-escalation guarantee: this identity's policy grants it no IAM
-# action over IAM users, groups, or itself).
-#
-# Simpler than repo_infra_local: k3s-bootstrap's own Terraform never
-# touches IAM/the GitHub OIDC provider at all (it manages Kubernetes
-# RBAC and PersistentVolumes via the kubernetes provider, not AWS
-# resources) -- the only AWS access it ever needs is read/write on its
-# own state prefix.
-#
-# This only ever removes the `aws login` step from
-# k3s-bootstrap/scripts/roll-out.sh -- applying that repo still needs
-# the k3s node's own cluster-admin kubeconfig regardless of which AWS
-# identity runs alongside it, since it manages privilege-defining
-# Kubernetes RBAC (see that repo's own README for why that stays a
-# human-only credential either way).
+# Scripted identity for k3s-bootstrap's roll-out.sh, state access only: see README, "Scripted identities".
 
 resource "aws_iam_user" "k3s_bootstrap_local" {
   name = "k3s-bootstrap-local"
@@ -29,10 +10,7 @@ resource "aws_iam_user" "k3s_bootstrap_local" {
 
 #trivy:ignore:AVD-AWS-0123
 resource "aws_iam_group" "k3s_bootstrap_local" {
-  # Fixes trivy's AWS-0143, same reasoning and same AWS-0123 suppression
-  # as home_infra_local's own identical fix -- a scripted,
-  # non-interactive identity with only a static access key, no console
-  # login to attach an MFA condition to.
+  # Group for trivy AWS-0143; MFA can't apply to a static-key identity, so AWS-0123 is suppressed.
   name = "k3s-bootstrap-local"
 }
 
@@ -67,16 +45,7 @@ resource "aws_iam_group_policy" "k3s_bootstrap_local_terraform_operator" {
         Resource = "${local.state_bucket_arn}/k3s-bootstrap/*"
       },
       {
-        # This root's own github_runner_github_token comes straight
-        # from home-infra/github-runner's own Secrets Manager
-        # container instead of a human-supplied TF_VAR_* at apply
-        # time. Read-only -- unlike julian's own
-        # ManageSecretsManagerSecrets statement (operator.tf), this is
-        # a scripted, non-interactive identity; julian's own
-        # credentials stay the only way to edit/rotate the value.
-        # Wildcard ARN string, not a resource reference, since the
-        # container itself lives in KandlerLi/secrets-manager, not this
-        # repo's own Terraform.
+        # Read-only: only julian edits or rotates this value.
         Sid      = "ReadGithubRunnerSecret"
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
@@ -109,11 +78,7 @@ variable "k3s_bootstrap_local_pgp_key" {
   sensitive   = true
 }
 
-# terraform apply -replace=aws_iam_access_key.k3s_bootstrap_local, then
-# repeat the decrypt-and-store step in README.md, rotates this. No
-# prevent_destroy here (unlike the user above) -- same reasoning as
-# repo_infra_local's own identical resource: this one is designed to
-# be replaced, prevent_destroy would just block that.
+# No prevent_destroy: rotation is -replace. See README.
 resource "aws_iam_access_key" "k3s_bootstrap_local" {
   user    = aws_iam_user.k3s_bootstrap_local.name
   pgp_key = var.k3s_bootstrap_local_pgp_key

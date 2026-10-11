@@ -159,6 +159,15 @@ long-lived access keys stored as repository secrets.
 Terraform state can contain secrets. Restrict both read and write access to the
 bucket and never publish state files or plan files.
 
+The bucket deliberately stays on SSE-S3 (`AES256`), not the shared KMS key,
+with trivy AWS-0132 suppressed. Every repo's CI role reads and writes state
+here with `s3:GetObject`/`PutObject`; under SSE-KMS each of them would also
+need `kms:GenerateDataKey`/`kms:Decrypt` on the shared key, or plan and apply
+would fail account-wide the moment this applied. Switching needs an audit of
+every role first. Access logging (AWS-0089) is fixed: the bucket logs to
+itself under a separate prefix, a write path the S3 log delivery service
+handles, independent of those roles.
+
 ## Operator Identity (`julian`)
 
 `operator.tf` brings the pre-existing IAM user `julian` (created 2021,
@@ -175,7 +184,19 @@ reasoning, including why this identity is deliberately given no access to
 Applying this root always needs the AWS root identity (or another already
 admin-equivalent identity) — never `julian`. That's what makes the
 guarantee hold: the resources managing `julian`'s own identity live
-somewhere `julian` has no access to.
+somewhere `julian` has no access to. It also keeps these identity
+resources out of `repo-infra`'s routine plans, which run under `julian`'s
+restricted credentials.
+
+The scoped policy is a customer-managed policy, not an inline one: adding
+the Secrets Manager statement pushed it past AWS's fixed 2048-byte cap for
+inline user policies (managed policies allow 6144). Its
+`AllowLocalDevelopmentSignIn` statement grants the two `signin:` actions
+`aws login`'s browser OAuth flow needs for an IAM user; without them,
+`aws login` as `julian` failed at token exchange once `AdministratorAccess`
+was detached. The Secrets Manager statement includes `PutSecretValue`,
+since `julian` rotates the values, and uses wildcard ARNs because the
+containers live in `secrets-manager`.
 
 ### First apply: importing `julian`
 
@@ -222,7 +243,11 @@ Confirmed set up and working 2026-09-14, at which point
 `sts:GetCallerIdentity`, the standard MFA self-management actions, and
 the two `signin:` actions julian's own `aws login` sign-in itself needs
 is denied without an MFA-authenticated session
-(`aws:MultiFactorAuthPresent`). Deliberately its own separate group
+(`aws:MultiFactorAuthPresent`, checked with `BoolIfExists` as AWS's own
+example does, since the key is absent rather than false on a request that
+never used MFA). Exempting the two `signin:` actions matters: they are the
+exchange that creates the MFA-backed session, so denying them would lock
+`julian` out with only root as a way back in. Deliberately its own separate group
 policy, not folded into `julian_terraform_operator` — a Deny of this
 shape can be detached in one step if it ever needs rolling back
 (`terraform state rm` won't do it since it'd still exist in config; the
@@ -239,7 +264,7 @@ authenticator app pairing for zero real benefit.
 
 ### Read access vs. write access
 
-`julian`'s *write* permissions (the `terraform-operator` inline policy)
+`julian`'s *write* permissions (the `terraform-operator` managed policy)
 are scoped to exactly what `repo-infra` touches today — nothing broader.
 `julian` cannot manage this bucket or apply `terraform-state` itself; only
 root can. `julian` also has AWS's managed `ViewOnlyAccess` policy attached
@@ -285,6 +310,31 @@ about `julian` needing read/write on the values themselves (and
 [`secrets-manager/README.md`](https://github.com/KandlerLi/secrets-manager/blob/main/README.md) for the migration-status table,
 the per-group docs (moved there too), and
 [`home-infra-docs/docs/runbooks/rotate-secrets.md`](https://github.com/KandlerLi/home-infra-docs/blob/main/docs/runbooks/rotate-secrets.md) for rotation.
+
+## Scripted identities
+
+`repo-infra-local`, `k3s-bootstrap-local` and `home-infra-local` follow one
+design. Each serves one repo's scripted, non-interactive local runs with a
+static access key stored in `pass`, instead of `julian`'s MFA-backed
+`aws login`. That is a deliberate, narrow exception to ADR 0018's rule
+against static operator credentials, not a weakening of `julian`'s own
+guarantee:
+
+- Same self-escalation guarantee as `julian`: no IAM action over users,
+  groups or themselves, and defined in this root, which none of them can
+  touch.
+- Each user sits in a single-member group (trivy AWS-0143). AWS-0123 (MFA
+  not enforced) is suppressed on the group: a static-key identity never
+  signs in, so there is no session an MFA condition could attach to.
+- Secret access is read-only; only `julian` edits or rotates values.
+- The access key has no `prevent_destroy`, unlike the user: rotation is
+  `terraform apply -replace=...`, which `prevent_destroy` blocks (it also
+  blocked recovering a first apply's tainted state). Only the identity
+  needs protecting, not the key.
+
+`repo-infra-local`'s policy is `julian`'s minus `AllowLocalDevelopmentSignIn`
+and `ViewOnlyAccess`, plus `kms:ListAliases` and `kms:DescribeKey` for
+`repo-infra`'s `alias/shared` lookup.
 
 ## repo-infra-local Identity
 
@@ -428,6 +478,27 @@ terraform apply -replace=aws_iam_access_key.home_infra_local
 
 then repeat the `pass insert` pair above.
 
+## Shared KMS key
+
+`shared_kms_key.tf` holds one customer managed key for every AWS resource
+in the account that wants KMS encryption, a deliberate choice (2026-09-14)
+for one ~$1/month base charge instead of one per repo or bucket. Other
+repos look it up by `alias/shared`.
+
+The key policy's root statement lets IAM principals use the key through
+their own IAM policies, which covers S3 bucket encryption. Services that
+authenticate as their own service principal get explicit statements, each
+in the shape AWS documents for that case and scoped to this account:
+
+- **CloudWatch Logs**, for every encrypted log group in this region.
+- **CloudTrail**, to encrypt log files, plus decrypting them back for
+  principals in this account, both scoped to this trail's encryption
+  context.
+- **CloudFront**, for OAC-protected S3 origins with SSE-KMS (`website`),
+  any distribution in the account.
+- **CloudWatch Alarms** publishing to SSE-KMS SNS topics, guarded by
+  `aws:SourceAccount` against the confused-deputy problem.
+
 ## Account Baseline Security Hardening
 
 `account_baseline.tf` manages a handful of account-wide, essentially
@@ -435,8 +506,14 @@ set-once security settings with no natural per-repository owner:
 
 - **CloudTrail** — one trail (`account-baseline`) covering management
   events across all regions, logging to its own dedicated
-  `jkandler-cloudtrail-logs` bucket (public access blocked, encrypted,
-  logs expire after 365 days). Free from CloudTrail itself; the only
+  `jkandler-cloudtrail-logs` bucket (public access blocked, versioned,
+  encrypted with the shared KMS key, logging its own access under a
+  separate prefix, current and noncurrent versions expiring after 365
+  days, since these logs are for investigation, not audit retention). The
+  trail also delivers to CloudWatch Logs and encrypts its log files with
+  the shared key itself. The bucket policy is AWS's documented shape,
+  scoped to this trail by `SourceArn`; the trail `depends_on` it because
+  CloudTrail checks write access at creation. Free from CloudTrail itself; the only
   cost is that bucket's S3 storage, fractions of a cent/month at this
   account's event volume.
 - **IAM Access Analyzer** (`account-baseline`, account-scoped) — flags

@@ -1,21 +1,4 @@
-# A scripted, non-interactive identity for KandlerLi/home-infra's own
-# Ansible runs, mirroring repo_infra_local.tf/k3s_bootstrap_local.tf's
-# exact reasoning and lessons learned -- see repo_infra_local.tf's own
-# header comment for why this is a deliberate, scoped exception to
-# ADR 0018 rather than a weakening of it, and why it's kept in this
-# root specifically (self-escalation guarantee: this identity's policy
-# grants it no IAM action over IAM users, groups, or itself).
-#
-# Simplest of the three: KandlerLi/home-infra has no Terraform state of
-# its own at all (pure Ansible) -- no S3 statements needed. Its only
-# AWS touchpoint is `ansible-playbook site.yml`'s own
-# lookup('amazon.aws.secretsmanager_secret', ...) calls for exactly
-# two secret groups (home-infra/monitoring, home-infra/nextcloud),
-# previously read under whatever ambient AWS session happened to be
-# active locally (in practice, julian's own `aws login`) -- this
-# identity replaces that with a static, minimally-scoped key stored in
-# pass, the same way repo-infra's and k3s-bootstrap's own local applies
-# already stopped needing julian's browser OAuth flow at all.
+# Scripted identity for home-infra's Ansible secret lookups: see README, "Scripted identities".
 
 resource "aws_iam_user" "home_infra_local" {
   name = "home-infra-local"
@@ -27,16 +10,7 @@ resource "aws_iam_user" "home_infra_local" {
 
 #trivy:ignore:AVD-AWS-0123
 resource "aws_iam_group" "home_infra_local" {
-  # Fixes trivy's AWS-0143 (policy attached directly to a user) --
-  # home-infra-local is a scripted, non-interactive credential (see this
-  # file's own header comment), so this group will only ever have this
-  # one member; the indirection is cheap and clears the finding without
-  # changing the effective permissions.
-  #
-  # Also suppresses the AWS-0123 (MFA not enforced) this in turn trips:
-  # this identity has no console password or login profile at all, only
-  # a static access key for Ansible's own boto3 calls -- MFA has no
-  # session to attach a condition to for raw access-key auth.
+  # Group for trivy AWS-0143; MFA can't apply to a static-key identity, so AWS-0123 is suppressed.
   name = "home-infra-local"
 }
 
@@ -54,11 +28,7 @@ resource "aws_iam_group_policy" "home_infra_local_read_secrets" {
         Resource = "*"
       },
       {
-        # Read-only -- this identity never rotates these values,
-        # exactly like k3s-bootstrap-local's own ReadGithubRunnerSecret
-        # statement. julian's own credentials stay the only way to
-        # edit/rotate either group. Wildcard ARN strings, matching the
-        # convention every migrated secret's grant already uses.
+        # Read-only: only julian edits or rotates these values.
         Sid    = "ReadHomeInfraSecrets"
         Effect = "Allow"
         Action = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
@@ -94,12 +64,7 @@ variable "home_infra_local_pgp_key" {
   sensitive   = true
 }
 
-# terraform apply -replace=aws_iam_access_key.home_infra_local, then
-# repeat the decrypt-and-store step in README.md, rotates this. No
-# prevent_destroy here (unlike the user above) -- same reasoning as
-# repo_infra_local's/k3s_bootstrap_local's own identical resource:
-# this one is designed to be replaced, prevent_destroy would just
-# block that.
+# No prevent_destroy: rotation is -replace. See README.
 resource "aws_iam_access_key" "home_infra_local" {
   user    = aws_iam_user.home_infra_local.name
   pgp_key = var.home_infra_local_pgp_key
