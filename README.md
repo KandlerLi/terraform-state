@@ -183,7 +183,10 @@ with trivy AWS-0132 suppressed (decided 2026-10-26, see
 previously managed only by hand, carrying `AdministratorAccess`) under
 Terraform, and attaches a policy scoped to exactly what running
 `repo-infra` locally needs — the shared state bucket's `repo-infra/*`
-prefix, the GitHub Actions OIDC provider, and IAM role/policy management
+prefix (plus `fritzbox/*`: `KandlerLi/fritzbox` is applied only
+interactively as `julian` from the LAN, so it gets no identity of its own,
+unlike the scripted `repo-infra-local`/`k3s-bootstrap-local`), the GitHub
+Actions OIDC provider, and IAM role/policy management
 restricted to the `*-github-actions`/`*-github-plan` naming convention
 `repo-infra`'s `modules/repo` uses. See
 `home-infra-docs/docs/adr/0018-scoped-operator-identity.md` for the full
