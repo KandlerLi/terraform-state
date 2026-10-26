@@ -86,21 +86,21 @@ resource "aws_iam_policy" "julian_terraform_operator" {
         Resource = "arn:aws:signin:*:*:oauth2/public-client/*"
       },
       {
-        Sid      = "ListRepoInfraState"
+        Sid      = "ListOperatorState"
         Effect   = "Allow"
         Action   = "s3:ListBucket"
         Resource = local.state_bucket_arn
         Condition = {
           StringLike = {
-            "s3:prefix" = ["repo-infra/*"]
+            "s3:prefix" = ["repo-infra/*", "fritzbox/*"]
           }
         }
       },
       {
-        Sid      = "ReadWriteRepoInfraState"
+        Sid      = "ReadWriteOperatorState"
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-        Resource = "${local.state_bucket_arn}/repo-infra/*"
+        Resource = ["${local.state_bucket_arn}/repo-infra/*", "${local.state_bucket_arn}/fritzbox/*"]
       },
       {
         Sid    = "ManageGitHubOidcProvider"
