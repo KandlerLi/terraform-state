@@ -160,13 +160,22 @@ Terraform state can contain secrets. Restrict both read and write access to the
 bucket and never publish state files or plan files.
 
 The bucket deliberately stays on SSE-S3 (`AES256`), not the shared KMS key,
-with trivy AWS-0132 suppressed. Every repo's CI role reads and writes state
-here with `s3:GetObject`/`PutObject`; under SSE-KMS each of them would also
-need `kms:GenerateDataKey`/`kms:Decrypt` on the shared key, or plan and apply
-would fail account-wide the moment this applied. Switching needs an audit of
-every role first. Access logging (AWS-0089) is fixed: the bucket logs to
-itself under a separate prefix, a write path the S3 log delivery service
-handles, independent of those roles.
+with trivy AWS-0132 suppressed (decided 2026-10-26, see
+[`home-infra-docs`](https://github.com/KandlerLi/home-infra-docs)' `decisions.md`). Two reasons:
+
+- **Access logging.** The bucket logs to itself under `access-logs/`
+  (trivy AWS-0089), and an S3 server access log target must use SSE-S3;
+  with SSE-KMS default encryption, delivered log objects end up encrypted
+  with a key the log delivery can't use. Switching would first need a
+  separate log bucket.
+- **Little to gain.** Every identity that reads or writes state here (each
+  repo's CI plan/apply role from `repo-infra`, plus `julian`,
+  `repo-infra-local` and `k3s-bootstrap-local`) would need
+  `kms:GenerateDataKey`/`kms:Decrypt` on the shared key, or plan and apply
+  fail account-wide the moment it applies. Those are exactly the identities
+  the KMS layer would have to admit, so it would lock out almost no one
+  while widening who can use the shared key. State is already encrypted at
+  rest with SSE-S3.
 
 ## Operator Identity (`julian`)
 
