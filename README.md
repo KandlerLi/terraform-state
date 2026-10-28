@@ -447,8 +447,9 @@ then repeat the `pass insert` pair above.
 [`home-infra`](https://github.com/KandlerLi/home-infra)'s own `ansible-playbook site.yml` runs instead. The
 simplest of the three: [`home-infra`](https://github.com/KandlerLi/home-infra) has no Terraform state of its
 own at all (pure Ansible) — no S3 statements needed. Its only AWS
-touchpoint is exactly two `lookup('amazon.aws.secretsmanager_secret', ...)`
-calls in `site.yml` (`home-infra/monitoring`, `home-infra/nextcloud`),
+touchpoint is the `lookup('amazon.aws.secretsmanager_secret', ...)`
+calls in `site.yml` (`home-infra/monitoring`, `home-infra/nextcloud`,
+`home-infra/prometheus`),
 previously read under whatever ambient AWS session happened to be
 active locally — in practice, `julian`'s own `aws login`. This identity
 removes that dependency the same way `repo-infra-local`/
