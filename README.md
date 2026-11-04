@@ -62,6 +62,10 @@ don't touch either access key) and runs `fmt`/`validate`/`plan`/`apply`
 so it stays applied only via an interactive `aws login` as root/an
 admin-equivalent identity, run yourself first (ADR 0018).
 
+After merging a PR, `scripts/update.sh plan`/`apply` switches to a fresh
+`main`, refusing a dirty tree, and runs `roll-out.sh` with the same arguments.
+`terraform init` there picks up changed provider and module versions.
+
 Do not remove or change the backend block, reinitialize with `-reconfigure`, or
 migrate state unless the existing remote state and recovery path have first
 been verified. Terraform state and plan files must not be committed.
