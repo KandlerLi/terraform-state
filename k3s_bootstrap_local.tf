@@ -45,11 +45,14 @@ resource "aws_iam_group_policy" "k3s_bootstrap_local_terraform_operator" {
         Resource = "${local.state_bucket_arn}/k3s-bootstrap/*"
       },
       {
-        # Read-only: only julian edits or rotates this value.
-        Sid      = "ReadGithubRunnerSecret"
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
-        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/github-runner-*"
+        # Read-only: only julian edits or rotates these values.
+        Sid    = "ReadK3sBootstrapSecrets"
+        Effect = "Allow"
+        Action = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+        Resource = [
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/github-runner-*",
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/argocd-*",
+        ]
       },
     ]
   })
