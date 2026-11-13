@@ -321,8 +321,8 @@ grant on every one of these secrets stays here permanently in
 `operator.tf`'s `ManageSecretsManagerSecrets` statement regardless —
 that grant was never really about which repo owns the container, only
 about `julian` needing read/write on the values themselves (and
-`k3s_bootstrap_local.tf`'s own `ReadGithubRunnerSecret` statement for
-`home-infra/github-runner` specifically, same reasoning). See
+`k3s_bootstrap_local.tf`'s own `ReadK3sBootstrapSecrets` statement for
+`home-infra/github-runner` and `home-infra/argocd`, same reasoning). See
 [`secrets-manager/README.md`](https://github.com/KandlerLi/secrets-manager/blob/main/README.md) for the migration-status table,
 the per-group docs (moved there too), and
 [`home-infra-docs/docs/runbooks/rotate-secrets.md`](https://github.com/KandlerLi/home-infra-docs/blob/main/docs/runbooks/rotate-secrets.md) for rotation.
