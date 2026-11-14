@@ -554,6 +554,35 @@ Applies at the same cadence and trust level as everything else in this
 root — root identity only, run alongside a normal `terraform plan`/
 `terraform apply` here.
 
+## k3s OIDC federation
+
+`k3s_oidc_federation.tf` makes the k3s cluster an OIDC identity provider for
+AWS, so the External Secrets Operator reads Secrets Manager with short-lived
+ServiceAccount tokens instead of static keys
+([ADR 0032](https://github.com/KandlerLi/home-infra-docs/blob/main/docs/adr/0032-cluster-secrets-through-external-secrets.md)).
+It lives here because it defines who may assume AWS identities.
+
+- **Issuer.** A private S3 bucket (`jkandler-k3s-oidc`, shared CMK) behind
+  CloudFront with Origin Access Control serves the discovery document and the
+  JWKS. The issuer is the distribution's own `*.cloudfront.net` name (output
+  `k3s_oidc_issuer`); the distribution has `prevent_destroy`, since a new one
+  would change the issuer in every token and in the IAM provider.
+- **Roles.** `k3s-eso-apps`, `k3s-eso-auth` and `k3s-eso-monitoring` (output
+  `k3s_eso_role_arns`). Each trusts only
+  `system:serviceaccount:<namespace>:external-secrets` with audience
+  `sts.amazonaws.com` and may only `GetSecretValue` the groups listed in
+  `local.k3s_eso_secret_groups`, the ones that namespace's Pods consume.
+  Adding a group to a namespace is a change here, applied by root.
+- **JWKS.** `k3s-oidc/jwks.json` is the cluster's public service-account key,
+  from `kubectl get --raw /openid/v1/jwks`. It only changes if k3s'
+  service-account signing key changes; then refresh the file and apply, or
+  ESO's logins fail.
+- **Consumers.** `home-infra`'s `k3s_node` role sets the issuer as k3s' first
+  `--service-account-issuer`; `k3s-bootstrap` creates the ServiceAccounts and
+  SecretStores with the role ARNs.
+- **Outage.** If CloudFront is unreachable and AWS has no cached keys, ESO
+  can't refresh; existing Kubernetes Secrets stay and Pods keep running.
+
 ## Decommissioning
 
 The bucket is not configured with `force_destroy`, so Terraform will refuse to
