@@ -74,6 +74,8 @@ resource "aws_iam_group_policy" "repo_infra_local_terraform_operator" {
           "iam:DeleteRolePolicy",
           "iam:ListRolePolicies",
           "iam:ListAttachedRolePolicies",
+          # The AWS provider checks for instance profiles before DeleteRole.
+          "iam:ListInstanceProfilesForRole",
         ]
         Resource = [
           "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*-github-actions",
