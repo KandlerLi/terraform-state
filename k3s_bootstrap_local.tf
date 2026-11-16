@@ -52,6 +52,8 @@ resource "aws_iam_group_policy" "k3s_bootstrap_local_terraform_operator" {
         Resource = [
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/github-runner-*",
           "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:home-infra/argocd-*",
+          # The runners' registry cache pulls from GHCR with it.
+          "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:k3s-apps/ghcr-pull-token-*",
         ]
       },
     ]
