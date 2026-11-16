@@ -8,10 +8,8 @@ locals {
   k3s_eso_secret_groups = {
     apps = [
       "home-infra/blocky",
-      "home-infra/home-agent",
       "home-infra/ingress",
       "home-infra/monitoring",
-      "home-infra/open-webui",
       "k3s-apps/bulwark",
       "k3s-apps/ghcr-pull-token",
       "k3s-apps/paperless",
