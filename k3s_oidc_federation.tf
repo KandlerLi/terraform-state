@@ -13,6 +13,7 @@ locals {
       # Nextcloud's OIDC client secret, shared with AIO until the ADR 0033 cutover.
       "home-infra/nextcloud",
       "k3s-apps/bulwark",
+      "k3s-apps/eurooffice",
       "k3s-apps/ghcr-pull-token",
       "k3s-apps/nextcloud",
       "k3s-apps/paperless",
