@@ -10,8 +10,12 @@ locals {
       "home-infra/blocky",
       "home-infra/ingress",
       "home-infra/monitoring",
+      # Nextcloud's OIDC client secret, shared with AIO until the ADR 0033 cutover.
+      "home-infra/nextcloud",
       "k3s-apps/bulwark",
+      "k3s-apps/eurooffice",
       "k3s-apps/ghcr-pull-token",
+      "k3s-apps/nextcloud",
       "k3s-apps/paperless",
       "k3s-apps/sankey-export",
       "k3s-apps/vaultwarden",
